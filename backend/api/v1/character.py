@@ -33,11 +33,15 @@ async def create_chat(
         role = await crud.get_data(role_id, strict=True, scalar=False)
         user = await user_crud.get_data(user_id, strict=True, scalar=False)
 
-        task_prompt = get_prompt_template("task").render(role=role, user=user)
-        policy_prompt = get_prompt_template("policy").render(
-            role=role, user=user, jailbreak=True
+        task_prompt = get_prompt_template("task").render(
+            role=role, user=user, language="简体中文"
         )
-        info_prompt = get_prompt_template("info").render(role=role, user=user)
+        policy_prompt = get_prompt_template("policy").render(
+            role=role, user=user, jailbreak=True, policy=True, language="简体中文"
+        )
+        info_prompt = get_prompt_template("info").render(
+            role=role, user=user, language="简体中文"
+        )
 
         message = [
             {
