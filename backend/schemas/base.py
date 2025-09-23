@@ -18,8 +18,8 @@ class ORMBaseSmall(TableBase):
 
 
 class ORMBase(ORMBaseSmall):
-    deleted_at: Optional[datetime] = Field(description="删除时间")
-    is_delete: bool = Field(False, description="是否软删除")
+    # deleted_at: Optional[datetime] = Field(description="删除时间")
+    # is_delete: bool = Field(False, description="是否软删除")
     updated_at: datetime = Field(description="更新时间")
 
 

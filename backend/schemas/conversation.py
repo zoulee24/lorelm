@@ -18,7 +18,7 @@ class ConversationSessionResponse(ORMBase):
     user_id: int = Field(description="用户ID")
     world_id: Optional[int] = Field(None, description="世界ID")
     act_character_id: Optional[int] = Field(None, description="用户扮演的角色ID")
-    title: str = Field(description="会话标题")
+    title: str = Field(max_length=32, description="会话标题")
     token_usage: int = Field(default=0, description="对话消耗的token数")
 
     characters: Annotated[list[str], BeforeValidator(characters_convert)] = Field(

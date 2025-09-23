@@ -2,18 +2,28 @@ from typing import Annotated, Optional
 
 from pydantic import BaseModel, BeforeValidator, Field
 
-from ..schemas.base import DataRange, ORMBase, TableBase
+from ..schemas.base import DataRange, ORMBase
 
 
 class LabelResponse(ORMBase):
     name: str = Field(max_length=16, description="标签名称")
 
 
+def _str2list(s: str):
+    if isinstance(s, str):
+        return s.split(",")
+    elif isinstance(s, list) and len(s) == 1:
+        return s[0].split(",")
+    else:
+        print(f"未处理 str2list 参数错误: {s}")
+        return s
+
+
 def _label_convert(v: str | LabelResponse):
-    if isinstance(v, LabelResponse):
-        return v.name
-    elif isinstance(v, str):
+    if isinstance(v, str):
         return v
+    elif hasattr(v, "name"):
+        return v.name
     else:
         raise TypeError(f"Invalid label type: {type(v)}")
 
@@ -22,6 +32,34 @@ def labels_convert(data: list[str | LabelResponse]):
     if not isinstance(data, (list, tuple)):
         raise TypeError(f"Invalid labels type: {type(data)}")
     return list(map(_label_convert, data))
+
+
+class WorldResponse(ORMBase):
+    """世界响应"""
+
+    nickname: str = Field(description="昵称")
+    description: str = Field(default="", description="描述")
+    data_range: DataRange = Field(description="数据范围")
+    labels: Annotated[list[str], BeforeValidator(labels_convert)] = Field(
+        default_factory=list, description="标签"
+    )
+
+
+class WorldCreateForm(BaseModel):
+    """世界创建表单"""
+
+    nickname: str = Field(
+        min_length=2, max_length=64, description="昵称", examples=["新世界"]
+    )
+    description: str = Field(
+        default="", description="描述", examples=["这是一个奇幻世界"]
+    )
+    data_range: DataRange = Field(
+        DataRange.all, description="数据范围", examples=[DataRange.all, DataRange.self]
+    )
+    labels: Annotated[list[str], BeforeValidator(_str2list)] = Field(
+        default_factory=list, description="标签列表", examples=[["魔法", "中世纪"]]
+    )
 
 
 class CharacterResponse(ORMBase):
@@ -37,16 +75,6 @@ class CharacterResponse(ORMBase):
     data_range: DataRange = Field(description="数据范围")
 
 
-def str2list(s: str):
-    if isinstance(s, str):
-        return s.split(",")
-    elif isinstance(s, list) and len(s) == 1:
-        return s[0].split(",")
-    else:
-        print(f"未处理 str2list 参数错误: {s}")
-        return s
-
-
 class CharacterCreateForm(BaseModel):
     """角色响应"""
 
@@ -56,7 +84,7 @@ class CharacterCreateForm(BaseModel):
     data_range: DataRange = Field(
         DataRange.all, description="数据范围", examples=[DataRange.all, DataRange.self]
     )
-    labels: Annotated[list[str], BeforeValidator(str2list)] = Field(
+    labels: Annotated[list[str], BeforeValidator(_str2list)] = Field(
         default_factory=list, description="标签列表", examples=[["女", "阳光"]]
     )
 

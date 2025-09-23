@@ -37,6 +37,90 @@ class LabelCrud(CrudBase[models.Label, schemas.LabelResponse]):
         await super().delete_data(label_id)
 
 
+class WorldCrud(CrudBase[models.World, schemas.WorldResponse]):
+    """
+    世界Crud
+    """
+
+    _DBModelType = models.World
+    _DBSchemaType = schemas.WorldResponse
+
+    async def get_data(
+        self,
+        data_id=None,
+        start_sql=None,
+        wheres=None,
+        select_from=None,
+        order=None,
+        order_field=None,
+        schema=None,
+        strict=False,
+        scalar=True,
+    ):
+        return await super().get_data(
+            data_id,
+            start_sql,
+            wheres,
+            select_from,
+            options=selectinload(self.model.labels),
+            order=order,
+            order_field=order_field,
+            schema=schema,
+            strict=strict,
+            scalar=scalar,
+        )
+
+    async def get_datas(
+        self,
+        page=1,
+        limit=0,
+        data_ids=None,
+        start_sql=None,
+        wheres=None,
+        select_from=None,
+        order=None,
+        order_field=None,
+        schema=None,
+        scalar=False,
+    ):
+        return await super().get_datas(
+            page,
+            limit,
+            data_ids,
+            start_sql,
+            wheres,
+            select_from,
+            options=selectinload(self.model.labels),
+            order=order,
+            order_field=order_field,
+            schema=schema,
+            scalar=scalar,
+        )
+
+    async def create_data(self, data: schemas.WorldCreateForm, user_id: int):
+        exist = await self.get_count(wheres=self.model.nickname == data.nickname)
+        if exist != 0:
+            raise CustomException(ErrorCode.Exist)
+        label_crud = LabelCrud(self.db)
+        exist_label_model = await label_crud.get_datas(
+            wheres=label_crud.model.name.in_(data.labels),
+            scalar=False,
+        )
+        not_exist_labels = set(data.labels) - set(
+            map(attrgetter("name"), exist_label_model)
+        )
+        model = self.model(**data.model_dump(exclude={"labels"}), user_id=user_id)
+        model.labels.extend(exist_label_model)
+
+        if not_exist_labels:
+            not_exist_model = await label_crud.batch_create(not_exist_labels)
+            model.labels.extend(not_exist_model)
+
+        return await super().create_data(
+            model, attribute_names=["labels", "created_at", "updated_at"]
+        )
+
+
 class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
     """
     角色Crud
@@ -97,7 +181,7 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
             scalar=scalar,
         )
 
-    async def create_data(self, data: schemas.CharacterCreateForm):
+    async def create_data(self, data: schemas.CharacterCreateForm, user_id: int):
         exist = await self.get_count(wheres=self.model.nickname == data.nickname)
         if exist != 0:
             raise CustomException(ErrorCode.Exist)
@@ -109,7 +193,13 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
         not_exist_labels = set(data.labels) - set(
             map(attrgetter("name"), exist_label_model)
         )
-        not_exist_model = await label_crud.batch_create(not_exist_labels)
-        model = self.model(**data.model_dump(exclude={"labels"}))
-        model.labels.append(*exist_label_model, *not_exist_model)
-        return await super().create_data(model)
+        model = self.model(**data.model_dump(exclude={"labels"}), user_id=user_id)
+        model.labels.extend(exist_label_model)
+
+        if not_exist_labels:
+            not_exist_model = await label_crud.batch_create(not_exist_labels)
+            model.labels.extend(not_exist_model)
+
+        return await super().create_data(
+            model, attribute_names=["labels", "created_at", "updated_at"]
+        )

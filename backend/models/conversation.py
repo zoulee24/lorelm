@@ -37,7 +37,7 @@ class ConversationSession(ORMBase):
     )
 
     characters: Mapped[list["Character"]] = relationship(
-        secondary="m2m_character_session", uselist=True
+        secondary="m2m_session_character", uselist=True
     )
     messages: Mapped[list["ConversationHistory"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", uselist=True
@@ -70,7 +70,7 @@ class ConversationHistory(ORMBase):
         Integer, default=0, comment="对话消耗的token数"
     )
 
-    # session: Mapped[ConversationSession] = relationship(back_populates="messages")
+    session: Mapped[ConversationSession] = relationship(back_populates="messages")
 
 
 class Session2Character(TableBase):

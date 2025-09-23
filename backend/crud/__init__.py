@@ -1,2 +1,2 @@
 from .admin.user import UserCrud
-from .character import CharacterCrud, LabelCrud
+from .character import CharacterCrud, LabelCrud, WorldCrud

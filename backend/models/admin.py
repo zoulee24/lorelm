@@ -34,3 +34,4 @@ class User(ORMBase):
     language: Mapped[str] = mapped_column(
         String(16), default="简体中文", comment="语言"
     )
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否管理员")
