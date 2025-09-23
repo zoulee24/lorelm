@@ -1,23 +1,11 @@
-from datetime import datetime
-
 from numpy import ndarray
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import (
-    ARRAY,
-    Boolean,
-    ForeignKey,
-    Index,
-    String,
-    Text,
-    event,
-    func,
-    select,
-)
+from sqlalchemy import Boolean, ForeignKey, Index, String, Text, event, func, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from ..schemas import DataRange
-from .base import BigInteger, OptionMapped, ORMBase, TableBase
+from .base import BigInteger, ORMBase, TableBase
 
 
 class Label(ORMBase):
@@ -30,6 +18,33 @@ class Label(ORMBase):
     # characters: Mapped[list["Character"]] = relationship(
     #     secondary="m2m_label_character", uselist=True
     # )
+
+
+class World(ORMBase):
+    __tablename__ = "world"
+    __table_args__ = {"comment": "世界表"}
+
+    nickname: Mapped[str] = mapped_column(
+        String(64), index=True, nullable=False, comment="昵称"
+    )
+    description: Mapped[str] = mapped_column(Text, default="", comment="描述")
+
+    labels: Mapped[list["Label"]] = relationship(
+        secondary="m2m_label_world", uselist=True
+    )
+    characters: Mapped[list["Character"]] = relationship(
+        secondary="m2m_world_character", uselist=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("user.id"),
+        index=True,
+        comment="用户ID",
+    )
+    data_range: Mapped[str] = mapped_column(
+        String(16), default=DataRange.all, comment="数据范围"
+    )
 
 
 class Character(ORMBase):
@@ -50,23 +65,18 @@ class Character(ORMBase):
     description: Mapped[str] = mapped_column(Text, comment="描述")
     first_message: Mapped[str] = mapped_column(Text, comment="首条信息")
 
-    labels: Mapped[list["Label"]] = relationship(
-        secondary="m2m_label_character", uselist=True
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("user.id"),
+        index=True,
+        comment="用户ID",
     )
     data_range: Mapped[str] = mapped_column(
         String(16), default=DataRange.all, comment="数据范围"
     )
 
-
-class Lable2Character(TableBase):
-    __tablename__ = "m2m_label_character"
-    __table_args__ = {"comment": "标签角色关联表"}
-
-    label_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("label.id", ondelete="CASCADE"), index=True
-    )
-    character_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("character.id", ondelete="CASCADE"), index=True
+    labels: Mapped[list["Label"]] = relationship(
+        secondary="m2m_label_character", uselist=True
     )
 
 
@@ -91,8 +101,14 @@ class Document(ORMBase):
         BigInteger,
         ForeignKey("character.id"),
         nullable=True,
-        default=None,
         comment="角色ID",
+        index=True,
+    )
+    world_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("world.id"),
+        nullable=True,
+        comment="世界ID",
         index=True,
     )
     content: Mapped[str] = mapped_column(Text, comment="内容")
@@ -134,6 +150,42 @@ def generate_tsvector(mapper, connection, target):
         # 注意：必须用标量查询，因为 func.to_tsvector 返回的是 SQL 表达式
         result = session.scalar(select(vector_expr))
         setattr(target, tsvector_field, result)
+
+
+class Lable2World(TableBase):
+    __tablename__ = "m2m_label_world"
+    __table_args__ = {"comment": "标签世界关联表"}
+
+    label_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("label.id", ondelete="CASCADE"), index=True
+    )
+    world_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("world.id", ondelete="CASCADE"), index=True
+    )
+
+
+class World2Character(TableBase):
+    __tablename__ = "m2m_world_character"
+    __table_args__ = {"comment": "世界角色关联表"}
+
+    world_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("world.id", ondelete="CASCADE"), index=True
+    )
+    character_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("character.id", ondelete="CASCADE"), index=True
+    )
+
+
+class Lable2Character(TableBase):
+    __tablename__ = "m2m_label_character"
+    __table_args__ = {"comment": "标签角色关联表"}
+
+    label_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("label.id", ondelete="CASCADE"), index=True
+    )
+    character_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("character.id", ondelete="CASCADE"), index=True
+    )
 
 
 event.listens_for(Document, "before_update")(generate_tsvector)
