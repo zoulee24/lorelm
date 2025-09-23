@@ -1,12 +1,10 @@
 <user>
-<name>{{ user.name }}</name>
+<name>{{ user.nickname }}</name>
 <gender>{{ user.gender }}</gender>
 </user>
 <role>
-<name>{{ role.name }}</name>
-{{ % if role.description % }}
+<name>{{ role.nickname }}</name>
 <description>
 {{ role.description }}
 </description>
-{% endif %}
 </role>
