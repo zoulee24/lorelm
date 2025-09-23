@@ -44,6 +44,11 @@ uv run alembic current
 - **ORM**: SQLAlchemy with async support, using custom base classes for common fields
 - **API**: RESTful API with v1 versioning under `backend/api/v1/`
 
+### API Layer
+- **Schemas**: Located in `backend/schemas/` directory for Pydantic models
+- **Response Models**: Separate files for different modules (`admin.py`, `character.py`, `conversation.py`)
+- **Common Patterns**: Base schemas for common responses (`PageResponse`, `ORMBase`, etc.)
+
 ### Key Components
 
 #### Database Layer
@@ -54,6 +59,11 @@ uv run alembic current
   - `TableBase`: Base with ID field
   - `ORMBaseSmall`: Base with created_at timestamp
   - `ORMBase`: Full base with updated_at, deleted_at, and is_delete fields
+
+#### Database Models
+- **Admin**: User management (`User`)
+- **Character**: Character, World, Label, Document models for role-playing system
+- **Conversation**: LLM conversation session and message models (`ConversationSession`, `ConversationHistory`, `Session2Character`)
 
 #### Application Factory
 - **Main App**: `backend/__init__.py` contains `create_app()` function
