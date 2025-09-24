@@ -1,12 +1,14 @@
 from typing import Annotated, Optional
 
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from ..schemas.base import DataRange, ORMBase
 
 
 class LabelResponse(ORMBase):
     name: str = Field(max_length=16, description="标签名称")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 def _str2list(s: str):
@@ -44,6 +46,8 @@ class WorldResponse(ORMBase):
         default_factory=list, description="标签"
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class WorldCreateForm(BaseModel):
     """世界创建表单"""
@@ -73,6 +77,8 @@ class CharacterResponse(ORMBase):
     description: str = Field(description="描述")
     first_message: str = Field(description="首条信息")
     data_range: DataRange = Field(description="数据范围")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CharacterCreateForm(BaseModel):

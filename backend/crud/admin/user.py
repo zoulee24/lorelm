@@ -15,9 +15,7 @@ class UserCrud(CrudBase[models.User, schemas.UserResponse]):
 
     async def login(self, username: str, password: str):
         user = await self.get_data(
-            wheres=and_(
-                self.model.nickname == username, self.model.password == password
-            ),
+            wheres=and_(self.model.email == username, self.model.password == password),
             strict=True,
             scalar=True,
         )

@@ -1,8 +1,11 @@
+from typing import Optional
+
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .admin import User
 from .base import BigInteger, ORMBase, TableBase
-from .character import Character
+from .character import Character, World
 
 
 class ConversationSession(ORMBase):
@@ -36,6 +39,9 @@ class ConversationSession(ORMBase):
         Integer, default=0, comment="对话消耗的token数"
     )
 
+    user: Mapped["User"] = relationship(uselist=False)
+    world: Mapped["World"] = relationship(uselist=False)
+    act_character: Mapped["Character"] = relationship(uselist=False)
     characters: Mapped[list["Character"]] = relationship(
         secondary="m2m_session_character", uselist=True
     )
@@ -65,7 +71,9 @@ class ConversationHistory(ORMBase):
         comment="角色",
     )
     content: Mapped[str] = mapped_column(Text, nullable=True, comment="对话内容")
-    reasoning: Mapped[str] = mapped_column(Text, nullable=True, comment="推理过程")
+    reasoning: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="推理过程"
+    )
     token_usage: Mapped[int] = mapped_column(
         Integer, default=0, comment="对话消耗的token数"
     )

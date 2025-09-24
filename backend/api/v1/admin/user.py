@@ -30,6 +30,18 @@ async def user_list(
 
 
 @user_router.get(
+    "/info",
+    response_model=schemas.UserResponse,
+)
+async def user_self_info(
+    db: dependencies.DependSession,
+    user_id: dependencies.DependValidUserId,
+):
+    data = await UserCrud(db).get_data(user_id, strict=False, scalar=False)
+    return data
+
+
+@user_router.get(
     "/{user_id}",
     response_model=schemas.UserResponse,
 )
@@ -42,7 +54,7 @@ async def user_info(
 
 
 @user_router.post(
-    "/",
+    "",
     response_model=schemas.UserResponse,
     dependencies=[dependencies.DependLogin],
 )

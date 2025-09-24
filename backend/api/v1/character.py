@@ -13,7 +13,7 @@ from backend.prompts import get_prompt_template
 from backend.schemas import PageResponse
 from backend.schemas import character as schemas
 
-role_router = APIRouter(prefix="/role", tags=["角色"])
+role_router = APIRouter(prefix="/character", tags=["角色"])
 world_router = APIRouter(prefix="/world", tags=["世界"])
 label_router = APIRouter(prefix="/label", tags=["标签"])
 
@@ -94,7 +94,7 @@ async def role_chat(
 
 
 @role_router.get(
-    "/", response_model=PageResponse[schemas.CharacterResponse], summary="角色列表"
+    "", response_model=PageResponse[schemas.CharacterResponse], summary="角色列表"
 )
 async def role_list(
     query_params: dependencies.DependPageQuery, db: dependencies.DependSession

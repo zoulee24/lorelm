@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, PlainValidator, validate_email
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainValidator
 
 from ..schemas.base import ORMBase
 
@@ -9,9 +9,7 @@ from ..schemas.base import ORMBase
 class UserResponse(ORMBase):
     """用户"""
 
-    email: Annotated[str, PlainValidator(validate_email)] = Field(
-        description="邮箱", examples=["<EMAIL>"]
-    )
+    email: EmailStr = Field(description="邮箱", examples=["<EMAIL>"])
     nickname: str = Field(description="昵称")
     password: str = Field(description="密码")
     avatar: Optional[str] = Field(None, description="头像")
@@ -27,13 +25,11 @@ class UserResponse(ORMBase):
 class UserCreateForm(BaseModel):
     """用户创建表单"""
 
-    email: Annotated[str, PlainValidator(validate_email)] = Field(
-        description="邮箱", examples=["<EMAIL>"]
-    )
+    email: EmailStr = Field(description="邮箱", examples=["<EMAIL>"])
     nickname: str = Field(
-        ..., min_length=1, max_length=32, description="昵称", examples=["loreuser"]
+        min_length=1, max_length=32, description="昵称", examples=["loreuser"]
     )
-    password: str = Field(..., min_length=6, description="密码", examples=["123456"])
+    password: str = Field(min_length=6, description="密码", examples=["123456"])
     avatar: Optional[str] = Field(None, description="头像", examples=[None])
     telephone: Optional[str] = Field(None, description="电话", examples=[None])
     gender: Optional[str] = Field(None, description="性别", examples=[None])
