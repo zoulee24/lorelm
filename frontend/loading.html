@@ -1,0 +1,61 @@
+<div>
+  <div class="blob"></div>
+  <span class="blob-title">OmniRAG</span>
+</div>
+
+<style scoped>
+  .blob-title {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 32px;
+    font-weight: bolder;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .blob {
+    width: 144px;
+    height: 144px;
+    display: grid;
+    background: #fff;
+    filter: blur(7.2px) contrast(10);
+    padding: 14.4px;
+    mix-blend-mode: darken;
+  }
+
+  .blob:before,
+  .blob:after {
+    content: "";
+    grid-area: 1/1;
+    width: 57.6px;
+    height: 57.6px;
+    background: #0010ff;
+    animation: blob-rhf26m 2.8s infinite;
+  }
+
+  .blob:after {
+    animation-delay: -1.4s;
+  }
+
+  @keyframes blob-rhf26m {
+    0% {
+      transform: translate(0, 0);
+    }
+
+    25% {
+      transform: translate(100%, 0);
+    }
+
+    50% {
+      transform: translate(100%, 100%);
+    }
+
+    75% {
+      transform: translate(0, 100%);
+    }
+
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+</style>
