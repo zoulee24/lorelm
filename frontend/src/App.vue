@@ -10,3 +10,15 @@ import zhCN from 'element-plus/es/locale/lang/zh-cn.mjs'
 
 <style scoped>
 </style>
+
+<style lang="scss">
+.hide-scrollbar {
+  /* 隐藏滚动条但保持滚动功能 */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Firefox */
+  scrollbar-width: none;
+}
+</style>

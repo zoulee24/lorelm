@@ -1,10 +1,10 @@
 import type { ORMBase, ORMBaseSmall } from "../base";
-import type { CharacterResponse } from "../character";
+import type { CharacterResponse, WorldResponse } from "../character";
 
 /**
  * 对话会话接口
  */
-export interface ConversationSession extends ORMBase {
+export interface SessionResponse extends ORMBase {
   /** 用户ID */
   user_id: number;
   /** 世界ID */
@@ -15,11 +15,24 @@ export interface ConversationSession extends ORMBase {
   title: string;
   /** 对话消耗的token数 */
   token_usage: number;
+}
+
+export interface SessionFullResponse extends SessionResponse {
+  world?: WorldResponse;
+  act_character?: CharacterResponse;
   /** 角色 */
   characters?: CharacterResponse[];
-  /** 消息 */
-  messages?: ConversationHistory[];
 }
+
+export interface SessionMessageResponse extends SessionFullResponse {
+  /** 消息 */
+  messages: ConversationHistory[];
+}
+
+/**
+ * 对话角色枚举
+ */
+export type ConversationRole = "user" | "assistant";
 
 /**
  * 对话历史接口
@@ -32,19 +45,14 @@ export interface ConversationHistory extends ORMBase {
   /** 角色 */
   role: ConversationRole;
   /** 对话内容 */
-  content?: string;
+  content: string;
   /** 推理过程 */
   reasoning?: string;
   /** 对话消耗的token数 */
   token_usage: number;
   /** 会话 */
-  session?: ConversationSession;
+  session?: SessionResponse;
 }
-
-/**
- * 对话角色枚举
- */
-export type ConversationRole = "user" | "assistant";
 
 /**
  * 对话创建表单
@@ -55,19 +63,19 @@ export interface ConversationCreateForm {
   /** 用户扮演的角色ID */
   act_character_id?: number;
   character_ids: number[];
-  /** 会话标题 */
-  title: string;
+  /** 会话内容 */
+  content: string;
 }
 
-/**
- * 消息发送表单
- */
-export interface MessageSendForm {
-  /** 会话ID */
-  session_id: number;
-  /** 对话内容 */
-  content?: string;
-}
+// /**
+//  * 消息发送表单
+//  */
+// export interface MessageSendForm {
+//   /** 会话ID */
+//   session_id: number;
+//   /** 对话内容 */
+//   content?: string;
+// }
 
 /**
  * 对话历史响应

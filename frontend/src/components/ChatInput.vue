@@ -100,7 +100,7 @@ const handleSubmit = () => {
     emit('submit', {
       content: modelValue.value,
       utils: utils
-    }, clearText)
+    } as ChatInfo, clearText)
   }
 }
 

@@ -1,8 +1,8 @@
 <template>
   <div class="bar">
     <div class="flex items-center justify-between mb-4">
-      <el-text>LoreLM</el-text>
-      <el-button circle @click="$emit('onHide')">
+      <el-text>{{ title ?? 'LoreLM' }}</el-text>
+      <el-button circle @click="$emit('hide')">
         <template #icon>
           <el-icon size="18">
             <Icon icon="tabler:layout-sidebar-left-collapse" />
@@ -10,7 +10,7 @@
         </template>
       </el-button>
     </div>
-    <el-button class="item" @click="createSession">开启新的对话</el-button>
+    <el-button class="item" @click="createSession">{{ createText ?? '开始新的旅程' }}</el-button>
     <div class="list mt-2">
       <button v-for="item in datas" class="item p-2 rounded-xl" :key="item.id"
         :class="{ 'selected': activeId === item.id }" @click="selectItem(item)">
@@ -21,27 +21,31 @@
 </template>
 <script setup lang="ts">
 import { Icon } from '@iconify/vue';
+import { ref } from 'vue';
 
 interface Props {
-  datas?: { id: number, content: string }[]
+  title?: string,
+  datas?: { id: number, content: string }[],
+  createText?: string
 }
 const props = defineProps<Props>()
 interface Emits {
-  (e: "onSelect", id: number | undefined): void
-  (e: "onHide"): void
+  (e: "select", id: number): void
+  (e: "hide"): void
+  (e: "create"): void
 }
 const emits = defineEmits<Emits>()
 
 const activeId = ref<number>()
 
 const createSession = () => {
-  activeId.value = undefined;
-  emits('onSelect', undefined)
+  emits('hide')
+  emits('create')
 }
 const selectItem = (item: { id: number, content: string }) => {
   console.log(item)
   activeId.value = item.id
-  emits('onSelect', item.id)
+  emits('select', item.id)
 }
 </script>
 <style lang="scss" scoped>

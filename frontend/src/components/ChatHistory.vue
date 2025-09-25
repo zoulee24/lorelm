@@ -1,25 +1,42 @@
 <template>
-  <div class="dialog-container">
+  <div ref="message" class="dialog-container">
     <template v-for="message in showMessages">
       <div class="message" :class="message.role == 'user' ? 'user' : 'assistant'" v-if="message.content.length != 0">
-        <!-- <markdown-preview :display-text="dialog.content" :is-completed="dialog.finished ?? true" /> -->
          <markdown-render :content="message.content"></markdown-render>
       </div>
     </template>
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import type { ChatMessage } from '@/schemas/conversation';
 
+const message = ref<HTMLDivElement>();
 
 interface Props {
   messages?: ChatMessage[]
 }
 const props = withDefaults(defineProps<Props>(), {
-  messages: [{ role: 'user', content: '就放到生警方弄的时间' }, { role: 'assistant', content: '*$就放到生警方弄的时间$*', reasoning: '就放到生警方弄的时间' }]
+  messages: () => ([])
 });
+// const props = withDefaults(defineProps<Props>(), {
+//   messages: () => ([{ role: 'user', content: '就放到生警方弄的时间' }, { role: 'assistant', content: '*$就放到生警方弄的时间$*', reasoning: '就放到生警方弄的时间' }])
+// });
+
+interface Expose {
+  scrollToBottom: (behavior?: ScrollBehavior) => void
+}
+
+const scrollToBottom = (behavior?: ScrollBehavior) => message.value?.scrollTo({
+    top: message.value.scrollHeight,
+    behavior
+  })
+
+defineExpose<Expose>({
+  scrollToBottom
+})
+
 const showMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant').map(message => ({
     role: message.role,

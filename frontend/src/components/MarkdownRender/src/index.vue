@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { renderMarkdownText } from './plugins/markdown';
 
 interface Props {
@@ -27,6 +27,8 @@ const renderedContent = computed(() => {
 </script>
 <style lang="scss">
 .__markdown-wrapper {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
   h1 {
     font-size: 1.75em;
     font-weight: 600;
@@ -170,14 +172,29 @@ const renderedContent = computed(() => {
     --at-apply: bg-#f1f1f1;
   }
 
-  // Deepseek 深度思考 Wrapper
 
-  .think-wrapper {
+  .think {
     --at-apply: pl-2 text-4 c-#8b8b8b;
     --at-apply: b-l-4 b-l-solid b-#e5e5e5;
+    color: rgb(148, 148, 148);
+    font-style: italic;
 
     p {
       --at-apply: line-height-4;
+    }
+  }
+
+  .emphasize {
+    color: orange;
+  }
+
+  .action {
+    --at-apply: pl-2 text-4 c-#408cff;
+    --at-apply: b-l-4 b-l-solid b-#408cff;
+    font-weight: bold;
+    span {
+      --at-apply: line-height-4;
+      margin: 0;
     }
   }
 }

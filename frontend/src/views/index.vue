@@ -7,10 +7,10 @@ meta:
 
 <template>
   <div>
-    <header class="header">
+    <header>
       <el-segmented v-model="value" :options="options" />
     </header>
-    <main>
+    <main class="flex flex-col">
       <div class="flex flex-wrap">
         <!-- <magic-card
           v-for="item in page.data"
@@ -27,8 +27,9 @@ meta:
           {{ item.nickname }}
         </magic-card>
       </div>
+      <el-button>开始新的旅程</el-button>
     </main>
-    <footer class="footer">
+    <footer>
     </footer>
   </div>
 </template>
