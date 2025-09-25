@@ -8,6 +8,37 @@ from .base import BigInteger, ORMBase, TableBase
 from .character import Character, World
 
 
+class ConversationHistory(ORMBase):
+    __tablename__ = "conversation_history"
+    __table_args__ = {"comment": "大语言模型对话历史"}
+
+    session_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("conversation_session.id", ondelete="CASCADE"),
+        comment="会话ID",
+    )
+    message_id: Mapped[str] = mapped_column(String(36), comment="消息ID")
+    # parent_id: Mapped[Optional[int]] = mapped_column(
+    #     BigInteger,
+    #     ForeignKey("conversation_history.id", ondelete="CASCADE"),
+    #     nullable=True,
+    #     comment="父对话历史ID",
+    # )
+    role: Mapped[str] = mapped_column(
+        String(16),
+        comment="角色",
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=True, comment="对话内容")
+    reasoning: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="推理过程"
+    )
+    token_usage: Mapped[int] = mapped_column(
+        Integer, default=0, comment="对话消耗的token数"
+    )
+
+    session: Mapped["ConversationSession"] = relationship(back_populates="messages")
+
+
 class ConversationSession(ORMBase):
     __tablename__ = "conversation_session"
     __table_args__ = {"comment": "大语言模型对话会话"}
@@ -46,39 +77,11 @@ class ConversationSession(ORMBase):
         secondary="m2m_session_character", uselist=True
     )
     messages: Mapped[list["ConversationHistory"]] = relationship(
-        back_populates="session", cascade="all, delete-orphan", uselist=True
+        back_populates="session",
+        cascade="all, delete-orphan",
+        uselist=True,
+        order_by=ConversationHistory.id.asc(),
     )
-
-
-class ConversationHistory(ORMBase):
-    __tablename__ = "conversation_history"
-    __table_args__ = {"comment": "大语言模型对话历史"}
-
-    session_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("conversation_session.id", ondelete="CASCADE"),
-        comment="会话ID",
-    )
-    message_id: Mapped[str] = mapped_column(String(36), comment="消息ID")
-    # parent_id: Mapped[Optional[int]] = mapped_column(
-    #     BigInteger,
-    #     ForeignKey("conversation_history.id", ondelete="CASCADE"),
-    #     nullable=True,
-    #     comment="父对话历史ID",
-    # )
-    role: Mapped[str] = mapped_column(
-        String(16),
-        comment="角色",
-    )
-    content: Mapped[str] = mapped_column(Text, nullable=True, comment="对话内容")
-    reasoning: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="推理过程"
-    )
-    token_usage: Mapped[int] = mapped_column(
-        Integer, default=0, comment="对话消耗的token数"
-    )
-
-    session: Mapped[ConversationSession] = relationship(back_populates="messages")
 
 
 class Session2Character(TableBase):

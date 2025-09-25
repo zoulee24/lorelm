@@ -42,11 +42,14 @@ class WorldResponse(ORMBase):
     nickname: str = Field(description="昵称")
     description: str = Field(default="", description="描述")
     data_range: DataRange = Field(description="数据范围")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorldFullResponse(WorldResponse):
     labels: Annotated[list[str], BeforeValidator(labels_convert)] = Field(
         default_factory=list, description="标签"
     )
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class WorldCreateForm(BaseModel):

@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
-from ..schemas.base import ORMBase, TableBase
+from ..schemas.base import ORMBase, ORMBaseSmall
 from .character import CharacterResponse, WorldResponse
 
 
@@ -60,7 +60,7 @@ class SessionUpdateForm(BaseModel):
     title: str = Field(min_length=1, max_length=32, description="会话标题")
 
 
-class ConversationHistoryResponse(ORMBase):
+class ConversationHistoryResponse(ORMBaseSmall):
     """对话历史响应"""
 
     session_id: int = Field(description="会话ID")

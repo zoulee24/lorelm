@@ -34,15 +34,36 @@ async def conversation_session_list(
         wheres=and_(
             crud.model.user_id == user_id,
             (now - crud.model.updated_at) < timedelta(days=30),
-        )
+        ),
+        order="desc",
+        order_field="updated_at",
+    )
+
+
+@conversation_router.get(
+    "/{session_id}", response_model=schemas.SessionMessageResponse, summary="获取会话"
+)
+async def conversation_session_info(
+    db: dependencies.DependSession,
+    session_id: Annotated[int, Path(description="会话ID")],
+):
+    crud = SessionCrud(db)
+    return await crud.get_data(
+        session_id,
+        options=[
+            joinedload(crud.model.world),
+            joinedload(crud.model.act_character).joinedload(models.Character.labels),
+            selectinload(crud.model.characters).joinedload(models.Character.labels),
+            selectinload(crud.model.messages),
+        ],
     )
 
 
 @conversation_router.post("", summary="创建会话")
-async def conversation_session_list(
-    form: schemas.SessionCreateForm,
+async def conversation_session_create(
     user_id: dependencies.DependValidUserId,
     session_id: Optional[int] = Query(None, description="会话ID"),
+    form: schemas.SessionCreateForm | str = Body(description="会话创建表单"),
 ):
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
@@ -58,9 +79,9 @@ async def conversation_session_list(
 
 
 async def create_chat(
-    form: schemas.SessionCreateForm,
+    form: schemas.SessionCreateForm | str,
     user_id: int,
-    session_id: int,
+    session_id: Optional[int],
     client: AsyncChatBase,
 ):
     async with dependencies.get_session_with() as db:
@@ -69,6 +90,7 @@ async def create_chat(
             session = await crud.get_data(
                 session_id,
                 options=[
+                    selectinload(crud.model.messages),
                     selectinload(crud.model.characters),
                     joinedload(crud.model.act_character),
                     joinedload(crud.model.world),
@@ -82,7 +104,7 @@ async def create_chat(
                     session_id=session.id,
                     message_id=str(uuid4()),
                     role="user",
-                    content=form.content,
+                    content=form,
                 )
             )
             session = await crud.update_data(
@@ -144,23 +166,32 @@ async def create_chat(
         async for chunk in client.generate(message):
             if ans is None:
                 ans = chunk
+                session.messages.append(
+                    models.ConversationHistory(
+                        session_id=session.id,
+                        message_id=ans.id,
+                        role="assistant",
+                        content="",
+                        reasoning="",
+                        token_usage=0,
+                    )
+                )
+                session = await crud.update_data(
+                    session, attribute_names=["messages", "updated_at"]
+                )
+                yield "event: dialog_created\ndata: {}\n\n".format(
+                    schemas.ConversationHistoryResponse.model_validate(
+                        session.messages[-1]
+                    ).model_dump_json()
+                )
             else:
                 ans += chunk
             yield f"event: output\ndata: {chunk.model_dump_json(exclude_none=True)}\n\n"
         # 结束对话
         yield f"event: done\n\n"
         # 更新token使用量
+        session.messages[-1].content = ans.content
+        session.messages[-1].reasoning = ans.reasoning
         session.messages[-1].token_usage = ans.usage.prompt_tokens
-        session.messages.append(
-            models.ConversationHistory(
-                session_id=session.id,
-                message_id=ans.id,
-                role="assistant",
-                content=ans.content,
-                reasoning=ans.reasoning,
-                token_usage=ans.usage.completion_tokens,
-            )
-        )
         session.token_usage += ans.usage.total_tokens
         session = await crud.update_data(session)
-        yield f"event: done\n\n"

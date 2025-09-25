@@ -129,6 +129,8 @@ class CrudBase(Generic[DB_MODEL_TYPE, DB_SCHEMA_TYPE]):
         sql = self._filter(start_sql, wheres, select_from, options, order, order_field)
         async with self._lock:
             result = await self._db.execute(sql)
+        if options is not None:
+            result = result.unique()
         if scalar:
             model = result.scalar_one_or_none()
         else:
@@ -300,9 +302,7 @@ class CrudBase(Generic[DB_MODEL_TYPE, DB_SCHEMA_TYPE]):
         async with self._lock:
             await self._db.flush()
             if obj is not None:
-                await self._db.refresh(
-                    obj, attribute_names=attribute_names, with_for_update=True
-                )
+                await self._db.refresh(obj, attribute_names=attribute_names)
 
     def _filter(
         self,
