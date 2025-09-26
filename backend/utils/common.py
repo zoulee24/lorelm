@@ -1,8 +1,12 @@
 import hashlib
 import os.path
 import time
+from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import Optional
+from logging import getLogger
+from typing import Final, Generic, Optional, TypeVar
+
+from backend.schemas import ProfileProvider, SystemProfile
 
 
 def get_unix_timestamp():
@@ -67,3 +71,44 @@ def parse_unit_str(data: str) -> int:
             num_part = data[: -len(unit)]
             return int(num_part) * multiplier
     raise ValueError(f"Invalid data format: {data}")
+
+
+DBType = TypeVar("DBType")
+
+
+class BaseTool(ABC, Generic[DBType]):
+    """工具连接的基类，定义通用工具操作的抽象接口"""
+
+    # 元数据
+    type: Final[ProfileProvider] = ProfileProvider.UNKNOWN
+
+    def __init__(self, config: SystemProfile):
+        assert self.type != ProfileProvider.UNKNOWN, "数据库类型禁止为未知"
+        self._config = config
+
+        self.logger = getLogger(f"lorelm.db.{self.type.value}")
+
+        self._client = self._get_client()
+        self._after_init()
+
+    @property
+    def config(self):
+        """数据库配置"""
+        return self._config
+
+    @abstractmethod
+    def _get_client(self) -> DBType:
+        """获取数据库客户端"""
+        pass
+
+    def _after_init(self):
+        pass
+
+    async def close(self):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
