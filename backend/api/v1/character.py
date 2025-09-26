@@ -1,10 +1,11 @@
 import os
 from operator import attrgetter
-from typing import Annotated
+from typing import Annotated, Optional, Union
 
-from fastapi import APIRouter, Body, Form, Path, Query
+from fastapi import APIRouter, Body, Form, Path, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from omni_llm import ChatOutput, async_chat_factory
+from sqlalchemy import or_, select
 
 from backend import dependencies
 from backend.crud import CharacterCrud, LabelCrud, UserCrud, WorldCrud
@@ -21,76 +22,7 @@ PathRoleId = Annotated[int, Path(description="角色ID")]
 PathLabelId = Annotated[int, Path(description="标签ID")]
 PathWorldId = Annotated[int, Path(description="世界ID")]
 
-
-async def create_chat(
-    role_id: int,
-    content: str,
-    user_id: int,
-):
-    async with dependencies.get_session_with() as db:
-        crud = CharacterCrud(db)
-        user_crud = UserCrud(db)
-        role = await crud.get_data(role_id, strict=True, scalar=False)
-        user = await user_crud.get_data(user_id, strict=True, scalar=False)
-
-        task_prompt = get_prompt_template("task").render(
-            role=role, user=user, language="简体中文"
-        )
-        policy_prompt = get_prompt_template("policy").render(
-            role=role, user=user, jailbreak=True, policy=True, language="简体中文"
-        )
-        info_prompt = get_prompt_template("info").render(
-            role=role, user=user, language="简体中文"
-        )
-
-        message = [
-            {
-                "role": "system",
-                "content": policy_prompt,
-            },
-            {
-                "role": "system",
-                "content": info_prompt,
-            },
-            {
-                "role": "system",
-                "content": task_prompt,
-            },
-            {
-                "role": "assistant",
-                "content": role.first_message,
-            },
-            {
-                "role": "user",
-                "content": content,
-            },
-        ]
-        print(message)
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
-        client = async_chat_factory("siliconflow")(
-            "Qwen/Qwen3-Next-80B-A3B-Instruct", -1, OPENAI_BASE_URL, OPENAI_API_KEY
-        )
-        yield "event: dialog_created\n\n"
-        ans: ChatOutput = None
-        async for chunk in client.generate(message):
-            if ans is None:
-                ans = chunk
-            else:
-                ans += chunk
-            yield f"event: output\ndata: {chunk.model_dump_json(exclude_none=True)}\n\n"
-        yield f"event: done\n\n"
-
-
-@role_router.post("/{role_id}/chat")
-async def role_chat(
-    role_id: PathRoleId,
-    user_id: dependencies.DependValidUserId,
-    content: Annotated[str, Body(description="对话内容")],
-):
-    return StreamingResponse(
-        create_chat(role_id, content, user_id), media_type="text/event-stream"
-    )
+OSS_BUCKET_NAME = "lorelm"
 
 
 @role_router.get(
@@ -114,19 +46,48 @@ async def role_info(role_id: PathRoleId, db: dependencies.DependSession):
     return data
 
 
-@role_router.post("/", response_model=schemas.CharacterResponse)
+@role_router.post("", response_model=schemas.CharacterResponse)
 async def role_info(
-    form: Annotated[schemas.CharacterCreateForm, Form()],
+    form: Annotated[
+        schemas.CharacterCreateForm, Form(media_type="multipart/form-data")
+    ],
     user_id: dependencies.DependValidUserId,
     db: dependencies.DependSession,
+    oss: dependencies.DependOSS,
 ):
+    if not isinstance(form.files, list):
+        form.files = [form.files]
     crud = CharacterCrud(db)
     data = await crud.create_data(form, user_id)
+
+    if form.avatar:
+        avatar_url = (
+            f"role_{data.id}/avatar.{form.avatar.filename.rsplit(".", maxsplit=1)[1]}"
+        )
+        await oss.document_create(
+            OSS_BUCKET_NAME,
+            avatar_url,
+            form.avatar.file,
+            form.avatar.size,
+        )
+        avatar_url = f"/{OSS_BUCKET_NAME}/{avatar_url}"
+        data.avatar = avatar_url
+
+    # for file in files:
+    #     file_path = f"role_{data.id}/{file.filename}"
+    #     assert await oss.document_create(
+    #         OSS_BUCKET_NAME, file_path, file.file, file.size
+    #     ), "上传失败"
+
+    # TODO 构建知识库
+
     return data
 
 
 @world_router.get(
-    "/", response_model=PageResponse[schemas.WorldResponse], summary="世界列表"
+    "",
+    response_model=PageResponse[schemas.WorldFullResponse],
+    summary="世界列表",
 )
 async def world_list(
     query_params: dependencies.DependPageQuery, db: dependencies.DependSession
@@ -137,8 +98,30 @@ async def world_list(
     return dict(data=data, total=total)
 
 
+@world_router.get("/stream", response_model=list[schemas.LabelResponse])
+async def world_stream(
+    name: Annotated[str, Query(max_length=16, description="")],
+    db: dependencies.DependSession,
+):
+    crud = WorldCrud(db)
+    result = await crud.execute(
+        select(
+            crud.model.nickname.label("name"),
+            crud.model.id,
+            crud.model.created_at,
+            crud.model.updated_at,
+        ).where(
+            or_(
+                crud.model.nickname.like(f"%{name}%"),
+                crud.model.description.like(f"%{name}%"),
+            )
+        )
+    )
+    return result.all()
+
+
 @world_router.get(
-    "/{world_id}", response_model=schemas.WorldResponse, summary="世界信息"
+    "/{world_id}", response_model=schemas.WorldFullResponse, summary="世界信息"
 )
 async def world_info(world_id: PathWorldId, db: dependencies.DependSession):
     crud = WorldCrud(db)
@@ -146,7 +129,18 @@ async def world_info(world_id: PathWorldId, db: dependencies.DependSession):
     return data
 
 
-@world_router.post("/", response_model=schemas.WorldResponse, summary="创建世界")
+@world_router.get(
+    "/{world_id}/characters",
+    response_model=list[schemas.CharacterResponse],
+    summary="世界关联角色",
+)
+async def world_info(world_id: PathWorldId, db: dependencies.DependSession):
+    crud = CharacterCrud(db)
+    data = await crud.get_datas(wheres=crud.model.world_id == world_id)
+    return data
+
+
+@world_router.post("", response_model=schemas.WorldFullResponse, summary="创建世界")
 async def world_create(
     form: Annotated[schemas.WorldCreateForm, Form()],
     user_id: dependencies.DependValidUserId,

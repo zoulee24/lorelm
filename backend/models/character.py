@@ -1,3 +1,5 @@
+from typing import Optional
+
 from numpy import ndarray
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, ForeignKey, Index, String, Text, event, func, select
@@ -58,7 +60,7 @@ class Character(ORMBase):
         ),
         {"comment": "角色表"},
     )
-
+    avatar: Mapped[str] = mapped_column(String(128), nullable=True, comment="头像")
     nickname: Mapped[str] = mapped_column(
         String(64), index=True, nullable=False, comment="昵称"
     )
@@ -70,6 +72,13 @@ class Character(ORMBase):
         ForeignKey("user.id"),
         index=True,
         comment="用户ID",
+    )
+    world_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("world.id"),
+        index=True,
+        nullable=True,
+        comment="世界ID",
     )
     data_range: Mapped[str] = mapped_column(
         String(16), default=DataRange.all, comment="数据范围"

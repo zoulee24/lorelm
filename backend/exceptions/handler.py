@@ -26,7 +26,7 @@ async def IntegrityErrorHandle(req: Request, exc: IntegrityError):
 async def RequestValidationHandle(req: Request, exc: RequestValidationError):
     errs_loc = []
     msg = ""
-    # logger.exception(exc)
+    logger.exception(exc)
 
     for err in exc.errors():
         err_type = err.get("type")

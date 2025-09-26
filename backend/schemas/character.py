@@ -1,5 +1,6 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 
+from fastapi import UploadFile
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from ..schemas.base import DataRange, ORMBase
@@ -93,8 +94,13 @@ class CharacterCreateForm(BaseModel):
     data_range: DataRange = Field(
         DataRange.all, description="数据范围", examples=[DataRange.all, DataRange.self]
     )
+    relate_world_id: int = Field(description="关联世界ID")
     labels: Annotated[list[str], BeforeValidator(_str2list)] = Field(
         default_factory=list, description="标签列表", examples=[["女", "阳光"]]
+    )
+    avatar: Optional[UploadFile] = Field(None, description="头像")
+    files: Union[UploadFile, list[UploadFile]] = Field(
+        default_factory=list, description="文件列表"
     )
 
 

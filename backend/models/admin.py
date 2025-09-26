@@ -18,9 +18,7 @@ class User(ORMBase):
     )
     password: Mapped[str] = mapped_column(String(255), comment="密码")
 
-    avatar: OptionMapped[str] = mapped_column(
-        String(128), nullable=True, comment="头像"
-    )
+    avatar: Mapped[str] = mapped_column(String(128), comment="头像")
     telephone: OptionMapped[str] = mapped_column(
         String(14), nullable=True, index=True, comment="手机号"
     )

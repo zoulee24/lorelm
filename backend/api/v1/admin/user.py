@@ -1,7 +1,7 @@
 import os
-from typing import Annotated
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Form, Path
+from fastapi import APIRouter, Form, Path, UploadFile
 
 from backend import dependencies
 from backend.crud import UserCrud
@@ -13,6 +13,7 @@ from backend.schemas import admin as schemas
 user_router = APIRouter(prefix="/user")
 
 type PathUserId = Annotated[int, Path(description="用户ID")]
+OSS_BUCKET_NAME = "lorelm"
 
 
 @user_router.get(
@@ -59,10 +60,29 @@ async def user_info(
     dependencies=[dependencies.DependLogin],
 )
 async def user_create(
-    form: Annotated[schemas.UserCreateForm, Form()], db: dependencies.DependSession
+    form: Annotated[schemas.UserCreateForm, Form()],
+    db: dependencies.DependSession,
+    oss: dependencies.DependOSS,
+    avatar: Annotated[Optional[UploadFile], Form(description="头像")] = None,
 ):
     crud = UserCrud(db)
-    data = await crud.create_data(form)
+    d = form.model_dump()
+    d["avatar"] = "/lorelm/resource/default_avatar.webp"
+    data = await crud.create_data(d)
+
+    if avatar:
+        avatar_url = (
+            f"user_{data.id}/avatar.{avatar.filename.rsplit(".", maxsplit=1)[1]}"
+        )
+        await oss.document_create(
+            OSS_BUCKET_NAME,
+            avatar_url,
+            avatar.file,
+            avatar.size,
+        )
+        avatar_url = f"{OSS_BUCKET_NAME}/{avatar_url}"
+        data.avatar = avatar_url
+    data = await crud.update_data(data, attribute_names=["updated_at"])
     return data
 
 
