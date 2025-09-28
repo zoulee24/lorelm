@@ -152,7 +152,7 @@ const handleLogin = async () => {
 
     // 登录成功，检查是否有redirect参数
     const redirect = route.query.redirect as string
-    const targetRoute = redirect || '/'
+    const targetRoute = redirect || '/world'
     router.push(targetRoute)
   } catch (error) {
     console.error('登录失败:', error)

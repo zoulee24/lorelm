@@ -13,7 +13,7 @@ logger = getLogger("lorelm.exception")
 
 async def CustomExcHandle(req: Request, exc: CustomException):
     content = dict(code=exc.code, message=exc.msg, data=None)
-    logger.warning(f"{req.url.path} 抛出异常 {exc.code} {exc.msg}")
+    logger.warning(f"{req.method} {req.url.path} 抛出异常 {exc.code} {exc.msg}")
     return ORJSONResponse(content, status_code=200)
 
 

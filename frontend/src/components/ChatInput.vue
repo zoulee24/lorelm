@@ -1,5 +1,17 @@
 <template>
   <div class="user-input gap-2">
+    <el-collapse-transition>
+      <div v-show="showCreate" class="outer">
+        <el-button plain round @click="$emit('create')">
+          {{ createText }}
+          <template #icon>
+            <el-icon>
+              <Icon icon="lsicon:add-chat-outline" />
+            </el-icon>
+          </template>
+        </el-button>
+      </div>
+    </el-collapse-transition>
     <el-text class="w-full h-full">
       <textarea v-model="modelValue" type="text" autofocus rows="2" placeholder="尽管问..." inputmode="text"
         @keydown.enter.exact.prevent="handleEnter" :disabled="loading"></textarea>
@@ -54,6 +66,7 @@
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue';
+import { reactive } from 'vue';
 
 interface Utils {
   deepresearch: boolean
@@ -67,14 +80,19 @@ export interface ChatInfo {
 
 interface Props {
   loading?: boolean
+  showCreate?: boolean
+  createText?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
+  showCreate: true,
+  createText: '开启新的探险'
 })
 
 // 定义组件事件类型
 interface UserInputEmits {
+  (e: 'create'): void
   (e: 'submit', value: ChatInfo, callback: () => void): void
 }
 
@@ -114,6 +132,16 @@ defineExpose({ clearText })
 </script>
 
 <style lang="scss" scoped>
+.user-input .outer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+
+  position: absolute;
+  left: 0;
+  top: -40px;
+}
+
 .user-input {
   display: flex;
   flex-direction: column;
@@ -125,6 +153,8 @@ defineExpose({ clearText })
   width: 100%;
   padding: 0.5rem;
   border-color: rgb(209, 216, 216);
+
+  position: relative;
 
   textarea {
     background: transparent;

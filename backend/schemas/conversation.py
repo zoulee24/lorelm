@@ -48,7 +48,7 @@ class SessionCreateForm(BaseModel):
     character_ids: list[int] = Field(
         default_factory=list, description="角色ID列表", examples=[[1]]
     )
-    content: str = Field(min_length=1, description="对话内容", examples=["你好"])
+    # content: str = Field(min_length=1, description="对话内容", examples=["你好"])
     # title: str = Field(
     #     min_length=1, max_length=32, description="会话标题", examples=["新会话"]
     # )

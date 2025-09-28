@@ -1,0 +1,57 @@
+setting:
+  index:
+    number_of_shards: 1
+    number_of_replicas: 0
+    refresh_interval: 1s
+    similarity:
+      scripted_sim:
+        type: scripted
+        script:
+          source: "double idf = Math.log(1+(field.docCount-term.docFreq+0.5)/(term.docFreq + 0.5))/Math.log(1+((field.docCount-0.5)/1.5)); return query.boost * idf * Math.min(doc.freq, 1);"
+
+common:
+  vector: &vector_config
+    type: dense_vector
+    index: true
+    similarity: cosine
+    
+
+mapping:
+  properties:
+    # 原文
+    content:
+      type: text
+      index: false
+      store: false
+    # 原文分词
+    content_ltks:
+      type: text
+      analyzer: whitespace
+      store: true
+    content_sm_ltks:
+      type: text
+      analyzer: whitespace
+      store: true
+    # 日期时间
+    create_at: &datetime
+      type: date
+      format: epoch_millis
+      index: false
+      store: false
+    update_at: *datetime
+    delete_at: *datetime
+    # 向量
+    vector: *vector_config
+    # q_512_vec:
+    #   <<: *vector_config
+    #   dims: 512
+    # q_768_vec:
+    #   <<: *vector_config
+    #   dims: 768
+    # q_1024_vec:
+    #   <<: *vector_config
+    #   dims: 1024
+    # q_1536_vec:
+    #   <<: *vector_config
+    #   dims: 1536
+    

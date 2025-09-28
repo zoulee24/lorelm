@@ -4,7 +4,7 @@
       <el-tag>世界</el-tag>
       <div class="show-card hide-scrollbar" v-if="!select_world">
         <magic-card class="h-64 w-64" v-for="item in world_page.data" :key="item.id" :title="item.nickname"
-          :description="item.description" @click="select_world = item" />
+          :description="item.description" :avatar="showAvatar(item.avatar)" @click="select_world = item" />
       </div>
       <div class="flex gap-4" v-else>
         <magic-card class="h-32 w-32" :title="select_world.nickname" :description="select_world.description" active
@@ -15,7 +15,7 @@
       <el-tag>{{ select_world?.nickname + '角色' }}</el-tag>
       <div class="show-card hide-scrollbar">
         <magic-card class="h-64 w-64" v-for="item in world_relate_characters" :key="item.id" :title="item.nickname"
-          :description="item.description" />
+           :avatar="showAvatar(item.avatar)" :description="item.description" />
       </div>
     </div>
     <div class="flex flex-col gap-4">
@@ -24,19 +24,19 @@
         <template v-for="item in character_page.data" :key="item.id">
           <magic-card class="h-64 w-64" :title="item.nickname"
             v-if="!select_characters.map(it => it.id).includes(item.id)" :description="item.description"
-            @click="select_characters.unshift(item)" />
+            :avatar="showAvatar(item.avatar)" @click="select_characters.unshift(item)" />
         </template>
       </div>
       <el-tag>选择角色</el-tag>
       <div class="show-card hide-scrollbar">
         <template v-for="item in select_characters" :key="item.id">
           <magic-card class="h-32 w-32" :title="item.nickname" :description="item.description" active
-            @click="select_characters.splice(select_characters.indexOf(item), 1)" />
+            :avatar="showAvatar(item.avatar)" @click="select_characters.splice(select_characters.indexOf(item), 1)" />
         </template>
       </div>
     </div>
-    <div class="flex">
-      <el-button>取消</el-button>
+    <div class="flex justify-center">
+      <el-button @click="$emit('cancel')">取消</el-button>
       <el-button type="success" native-type="submit">开始</el-button>
     </div>
   </el-form>
@@ -45,6 +45,7 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
 
+import {showAvatar} from '@/utils';
 import characterApi from '@/api/character';
 import type { PageResponse } from '@/schemas/base';
 import type { CharacterResponse, WorldResponse } from '@/schemas/character';
@@ -57,6 +58,7 @@ export interface CreateForm {
 }
 
 interface Emits {
+  (e: 'cancel'): void
   (e: 'submit', form: CreateForm): void
 }
 const emit = defineEmits<Emits>()

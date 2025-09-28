@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>2,<3",
     "pyjwt>=2",
     "cryptography>45",
+    "pydantic[email]",
     "orjson>=3",
     # database
     "alembic",
@@ -29,14 +30,21 @@ dependencies = [
     "openai",
     "omni-llm",
     "jinja2",
+    "tiktoken",
     # rag
     "numpy",
     "jieba>=0.42.1",
     "tokenizers",
     "modelscope",
+    "hanziconv",
+    "nltk",
+    "datrie==0.8.3",
+    "markdown>=3.8.2",
+    "elasticsearch[async]==8.18.1",
     # system
     "coloredlogs",
     "python-dotenv",
+    "miniopy-async",
 ]
 
 [[tool.uv.index]]

@@ -15,8 +15,8 @@ let failedRequestsQueue: RequestQueueItem[] = [];
 
 const refresh_token = () => {
   const user_store = useUserStore();
-  return request.post<JwtToken>('/auth/token/refresh', { 
-    token: `${user_store.token!.token_type} ${user_store.token!.refresh_token}` 
+  return request.post<JwtToken>('/auth/token/refresh', {
+    token: `${user_store.token!.token_type} ${user_store.token!.refresh_token}`
   }).then(rsp => (user_store.setToken(rsp))).catch(() => {
     ElMessage.warning('登录信息已失效，请重新登录！')
     user_store.logout()
@@ -31,7 +31,7 @@ async function retryOriginalRequest(
   const user_store = useUserStore();
   const headers = new Headers(originalConfig?.headers);
   if (user_store.isLogined) {
-    headers.set(user_store.token!.token_type ?? 'Authorization', user_store.token!.refresh_token);
+    headers.set('Authorization', `${user_store.token!.token_type} ${user_store.token!.refresh_token}`);
   }
 
   const retryConfig = {

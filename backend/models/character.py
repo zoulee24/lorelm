@@ -17,10 +17,6 @@ class Label(ORMBase):
     }
     name: Mapped[str] = mapped_column(String(16), nullable=False, comment="标签名称")
 
-    # characters: Mapped[list["Character"]] = relationship(
-    #     secondary="m2m_label_character", uselist=True
-    # )
-
 
 class World(ORMBase):
     __tablename__ = "world"
@@ -35,7 +31,7 @@ class World(ORMBase):
         secondary="m2m_label_world", uselist=True
     )
     characters: Mapped[list["Character"]] = relationship(
-        secondary="m2m_world_character", uselist=True
+        back_populates="world", uselist=True
     )
 
     user_id: Mapped[int] = mapped_column(
@@ -60,7 +56,9 @@ class Character(ORMBase):
         ),
         {"comment": "角色表"},
     )
-    avatar: Mapped[str] = mapped_column(String(128), nullable=True, comment="头像")
+    avatar: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True, comment="头像"
+    )
     nickname: Mapped[str] = mapped_column(
         String(64), index=True, nullable=False, comment="昵称"
     )
@@ -84,52 +82,49 @@ class Character(ORMBase):
         String(16), default=DataRange.all, comment="数据范围"
     )
 
+    world: Mapped[Optional["World"]] = relationship(
+        back_populates="characters",
+        foreign_keys=[world_id],
+        uselist=False,
+    )
     labels: Mapped[list["Label"]] = relationship(
         secondary="m2m_label_character", uselist=True
+    )
+    docs: Mapped[list["Document"]] = relationship(
+        uselist=True,
     )
 
 
 class Document(ORMBase):
     __tablename__ = "document"
-    __table_args__ = (
-        # 向量索引
-        Index("ix_content_ltks_gin", "content_ltks_tsvector", postgresql_using="gin"),
-        Index(
-            "ix_content_sm_ltks_gin", "content_sm_ltks_tsvector", postgresql_using="gin"
-        ),
-        Index(
-            "ix_vector_cosine",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 100},
-        ),
-        {"comment": "文档表"},
-    )
+    __table_args__ = {"comment": "文档表"}
 
-    character_id: Mapped[int] = mapped_column(
+    character_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
         ForeignKey("character.id"),
         nullable=True,
         comment="角色ID",
         index=True,
     )
-    world_id: Mapped[int] = mapped_column(
+    world_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
         ForeignKey("world.id"),
         nullable=True,
         comment="世界ID",
         index=True,
     )
-    content: Mapped[str] = mapped_column(Text, comment="内容")
+    index: Mapped[str] = mapped_column(String(64), default="lorelm", comment="索引名称")
+    path: Mapped[str] = mapped_column(String(64), comment="文件路径")
+    # content: Mapped[str] = mapped_column(Text, comment="内容")
 
-    content_ltks: Mapped[str] = mapped_column(Text, comment="内容粗分词")
-    content_sm_ltks: Mapped[str] = mapped_column(Text, comment="内容细分词")
-    content_ltks_tsvector: Mapped[str] = mapped_column(TSVECTOR, comment="内容粗分词")
-    content_sm_ltks_tsvector: Mapped[str] = mapped_column(
-        TSVECTOR, comment="内容细分词"
-    )
+    # content_ltks: Mapped[str] = mapped_column(Text, comment="内容粗分词")
+    # content_sm_ltks: Mapped[str] = mapped_column(Text, comment="内容细分词")
+    # content_ltks_tsvector: Mapped[str] = mapped_column(TSVECTOR, comment="内容粗分词")
+    # content_sm_ltks_tsvector: Mapped[str] = mapped_column(
+    #     TSVECTOR, comment="内容细分词"
+    # )
 
-    embedding: Mapped[ndarray] = mapped_column(Vector(1024), comment="嵌入")
+    # embedding: Mapped[ndarray] = mapped_column(Vector(1024), comment="嵌入")
 
     disabled: Mapped[bool] = mapped_column(
         Boolean, default=False, comment="是否禁用", index=True
@@ -144,8 +139,8 @@ def generate_tsvector(mapper, connection, target):
     if session is None:
         return None
     field_mapping = {
-        "title_tks": "title_tks_tsvector",
-        "title_sm_tks": "title_sm_tks_tsvector",
+        # "title_tks": "title_tks_tsvector",
+        # "title_sm_tks": "title_sm_tks_tsvector",
         "content_ltks": "content_ltks_tsvector",
         "content_sm_ltks": "content_sm_ltks_tsvector",
     }
@@ -173,16 +168,16 @@ class Lable2World(TableBase):
     )
 
 
-class World2Character(TableBase):
-    __tablename__ = "m2m_world_character"
-    __table_args__ = {"comment": "世界角色关联表"}
+# class World2Character(TableBase):
+#     __tablename__ = "m2m_world_character"
+#     __table_args__ = {"comment": "世界角色关联表"}
 
-    world_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("world.id", ondelete="CASCADE"), index=True
-    )
-    character_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("character.id", ondelete="CASCADE"), index=True
-    )
+#     world_id: Mapped[int] = mapped_column(
+#         BigInteger, ForeignKey("world.id", ondelete="CASCADE"), index=True
+#     )
+#     character_id: Mapped[int] = mapped_column(
+#         BigInteger, ForeignKey("character.id", ondelete="CASCADE"), index=True
+#     )
 
 
 class Lable2Character(TableBase):
@@ -197,5 +192,5 @@ class Lable2Character(TableBase):
     )
 
 
-event.listens_for(Document, "before_update")(generate_tsvector)
-event.listens_for(Document, "before_insert")(generate_tsvector)
+# event.listens_for(Document, "before_update")(generate_tsvector)
+# event.listens_for(Document, "before_insert")(generate_tsvector)

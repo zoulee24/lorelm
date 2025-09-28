@@ -135,18 +135,26 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
         start_sql=None,
         wheres=None,
         select_from=None,
+        options=None,
         order=None,
         order_field=None,
         schema=None,
         strict=False,
         scalar=True,
     ):
+        _options = [selectinload(self.model.labels)]
+        if options is not None:
+            if isinstance(options, list):
+                _options.extend(options)
+            else:
+                _options.append(options)
+
         return await super().get_data(
             data_id,
             start_sql,
             wheres,
             select_from,
-            options=selectinload(self.model.labels),
+            options=_options,
             order=order,
             order_field=order_field,
             schema=schema,
@@ -162,11 +170,18 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
         start_sql=None,
         wheres=None,
         select_from=None,
+        options=None,
         order=None,
         order_field=None,
         schema=None,
         scalar=False,
     ):
+        _options = [selectinload(self.model.labels)]
+        if options is not None:
+            if isinstance(options, list):
+                _options.extend(options)
+            else:
+                _options.append(options)
         return await super().get_datas(
             page,
             limit,
@@ -174,7 +189,7 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
             start_sql,
             wheres,
             select_from,
-            options=selectinload(self.model.labels),
+            options=_options,
             order=order,
             order_field=order_field,
             schema=schema,
@@ -204,5 +219,14 @@ class CharacterCrud(CrudBase[models.Character, schemas.CharacterResponse]):
             model.labels.extend(not_exist_model)
 
         return await super().create_data(
-            model, attribute_names=["labels", "created_at", "updated_at"]
+            model, attribute_names=["labels", "created_at", "updated_at", "world"]
         )
+
+
+class DocumentCrud(CrudBase[models.Document, schemas.DocumentResponse]):
+    """
+    文档Crud
+    """
+
+    _DBModelType = models.Document
+    _DBSchemaType = schemas.DocumentResponse

@@ -16,23 +16,26 @@ class SessionCrud(CrudBase[models.ConversationSession, schemas.SessionResponse])
     _DBModelType = models.ConversationSession
     _DBSchemaType = schemas.SessionResponse
 
-    async def create_data(self, data: schemas.SessionCreateForm, user_id: int):
-        title = data.content[:32]
+    async def create_session(self, data: schemas.SessionCreateForm, user_id: int):
         character_crud = CharacterCrud(self.db)
         characters = await character_crud.get_datas(data_ids=data.character_ids)
 
         model = self.model(
-            **data.model_dump(exclude={"character_ids", "content"}),
+            **data.model_dump(exclude={"character_ids"}),
             user_id=user_id,
-            title=title,
+            title="",
         )
         model.characters.extend(characters)
         model.messages.append(
             models.ConversationHistory(
                 session_id=model.id,
                 message_id=str(uuid4()),
-                role="user",
-                content=data.content,
+                role="assistant",
+                content="\n\n".join(
+                    f"{character.nickname}: {character.first_message}"
+                    for character in characters
+                    if character.first_message
+                ),
             )
         )
         model = await super().create_data(

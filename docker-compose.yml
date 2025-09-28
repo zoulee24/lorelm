@@ -28,6 +28,40 @@ services:
       - oss:/data
     command: server --console-address ":9001" /data
     restart: on-failure
+  vector:
+    image: elasticsearch:8.18.1
+    container_name: elasticsearch-01
+    env_file:
+      - .env
+    volumes:
+      - vector:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT}:9200
+    environment:
+      - node.name=es01
+      - ELASTIC_PASSWORD=${ES_PASSWORD}
+      - bootstrap.memory_lock=false
+      # 单节点
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - cluster.routing.allocation.disk.watermark.low=5gb
+      - cluster.routing.allocation.disk.watermark.high=3gb
+      - cluster.routing.allocation.disk.watermark.flood_stage=2gb
+      - TZ=${TIMEZONE}
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:9200"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    restart: on-failure
 volumes:
   db:
   oss:
+  vector:

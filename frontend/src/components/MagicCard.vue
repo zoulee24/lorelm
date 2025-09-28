@@ -3,13 +3,16 @@
     <el-image v-if="avatar" class="image" :src="avatar" alt="角色图片" fit="cover" lazy></el-image>
     <div class="detail">
       <el-tag size="large" v-show="!(hover && active)">{{ title }}</el-tag>
+      <div v-if="labels && labels.length > 1 && !active" class="flex flex-warp gap-2">
+        <el-tag size="small" v-for="label in labels" type="info">{{ label }}</el-tag>
+      </div>
       <div v-show="hover && !active" class="description hide-scrollbar">
         {{ description }}
       </div>
       <el-button v-show="hover && active" type="danger" link size="large">
         <template #icon>
           <el-icon size="26">
-            <Icon icon="material-symbols:delete-outline"/>
+            <Icon icon="material-symbols:delete-outline" />
           </el-icon>
         </template>
       </el-button>
@@ -26,12 +29,14 @@ interface Props {
   title: string
   description: string
   active?: boolean
+  labels?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  avatar: 'https://image.huanghepiao.com/d/file/20200801/761c78baca90bfd1cbfc94d266f71240.png',
+  avatar: '',
   description: '',
-  active: false
+  active: false,
+  labels: () => []
 })
 
 const hover = ref(false)
@@ -43,7 +48,7 @@ const hover = ref(false)
   position: relative;
 
   user-select: none;
-  
+
   display: flex;
   background-color: aliceblue;
 
@@ -78,7 +83,7 @@ const hover = ref(false)
     width: 100%;
     height: 100%;
     border-radius: 1rem;
-    transition: all .3s;
+    transition: background-color .3s;
 
     z-index: 1;
 

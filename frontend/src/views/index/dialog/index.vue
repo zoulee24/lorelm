@@ -6,33 +6,42 @@ meta:
 </route>
 
 <template>
-  <div class="h-screen flex items-center justify-center relative">
+  <div class="viewer">
     <div class="absolute top-2 left-2">
-      <el-button circle @click="visable.sidebar = true">
-        <template #icon>
-          <el-icon size="18">
-            <Icon icon="tabler:layout-sidebar-left-expand" />
-          </el-icon>
-        </template>
-      </el-button>
+      <div class="inline-flex">
+        <el-button circle @click="visable.sidebar = true">
+          <template #icon>
+            <el-icon size="18">
+              <Icon icon="tabler:layout-sidebar-left-expand" />
+            </el-icon>
+          </template>
+        </el-button>
+        <el-button circle @click="visable.create = true">
+          <template #icon>
+            <el-icon size="18">
+              <Icon icon="lsicon:add-chat-outline" />
+            </el-icon>
+          </template>
+        </el-button>
+      </div>
       <transition name="slide">
         <side-bar v-show="visable.sidebar" :datas="showSidBar" :class="{ 'slide-out': !visable.sidebar }"
           @hide="visable.sidebar = false" @select="onSelect" @create="visable.create = true" />
       </transition>
     </div>
     <main class="dialog gap-2">
-      <chat-history ref="history" class="messages hide-scrollbar" :messages="showMessages"></chat-history>
-      <chat-input :loading="loading.input" @submit="onCreateDialog"></chat-input>
+      <chat-history  ref="history" class="messages hide-scrollbar" :messages="showMessages"></chat-history>
+      <chat-input :loading="loading.input" @submit="onCreateDialog" @create="visable.create = true" :show-create="showMessages.length === 0"></chat-input>
     </main>
     <el-dialog v-model="visable.create" title="新的旅程">
-      <create-session @submit="onSubmit"></create-session>
+      <create-session @cancel="visable.create = false" @submit="onSubmit"></create-session>
     </el-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue'
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type {ChatInfo} from '@/components/ChatInput.vue'
 import SideBar from './components/sideBar.vue'
 import CreateSession from './components/createSession.vue'
@@ -45,6 +54,7 @@ import { ElMessage } from 'element-plus';
 
 const loading = reactive({
   input: false,
+  create: false,
 })
 
 const visable = reactive({
@@ -53,7 +63,6 @@ const visable = reactive({
 })
 const sessions = ref<SessionResponse[]>([])
 const session = ref<SessionMessageResponse>()
-const new_dialog_form = ref<ConversationCreateForm>()
 
 const history = ref<InstanceType<typeof ChatHistory>>()
 
@@ -82,26 +91,16 @@ onMounted(() => {
 })
 
 const onCreateDialog =  (data: ChatInfo, clearText: () => void) => {
-  let form: ConversationCreateForm | string
-  if (!session.value) {
-    if (!new_dialog_form.value) return;
-    new_dialog_form.value.content = data.content
-    form = new_dialog_form.value
-  } else {
-    form = data.content
-  }
-
+  if (!session.value) return;
   loading.input = true
 
-  streaming(form, session.value?.id).then(() => {
-    clearText()
-  }).finally(() => {
+  streaming(data.content, session.value.id, clearText).finally(() => {
     loading.input = false
   })
 }
 
-const streaming = async (form: ConversationCreateForm | string, session_id?: number) => {
-  const rsp = await sessionApi.create(form, session_id);
+const streaming = async (query: string, session_id: number, clearText: () => void) => {
+  const rsp = await sessionApi.chat(query, session_id);
   for await (const chunk of rsp) {
     if (chunk.type == 'output') {
       if (chunk.data.content) {
@@ -112,7 +111,6 @@ const streaming = async (form: ConversationCreateForm | string, session_id?: num
       history.value?.scrollToBottom('smooth')
     } else if (chunk.type == 'reference') {
       const docs = chunk.data.docs ?? [];
-      // info.history[info.history.length - 1].refs!.push(...chunk.data.docs);
       ElMessage.success({
         message: `检索到 ${docs.length} 条参考信息`,
         duration: 3000,
@@ -127,13 +125,23 @@ const streaming = async (form: ConversationCreateForm | string, session_id?: num
       ss.messages = []
       session.value = ss;
       sessions.value.unshift(session.value);
-      console.log('session_created', ss, session.value);
+      // console.log('session_created', ss, session.value);
     } else if (chunk.type === 'dialog_created') {
       const ss = chunk.data as ConversationHistory;
       session.value!.messages.push(ss);
-      history.value?.scrollToBottom('smooth')
+      history.value!.scrollToBottom('smooth')
+      if (!session.value!.title) {
+        session.value!.title = ss.content.substring(0, 32);
+      }
+      // 创建会话后清除输入框输入
+      if (ss.role === 'user') clearText()
     } else if (chunk.type === 'done') {
       history.value?.scrollToBottom('smooth')
+    } else if (chunk.type === 'notice') {
+      ElMessage.info({
+        message: chunk.data.message,
+        duration: 3000,
+      })
     } else {
       console.log("未知事件类型: ", chunk.type);
     }
@@ -141,15 +149,21 @@ const streaming = async (form: ConversationCreateForm | string, session_id?: num
 }
 
 const onSubmit = (data: CreateForm) => {
-  console.log(data);
-  new_dialog_form.value = {
+  const form = {
     character_ids: data.characters.map(item => item.id),
     world_id: data.world?.id,
     act_character_id: data.act_character?.id,
-    content: '',
-  };
-  visable.create = false;
-  session.value = undefined;
+  } as ConversationCreateForm;
+
+  loading.create = true
+  sessionApi.create(form).then(res => {
+    session.value = res;
+    sessions.value.unshift(res);
+    visable.create = false;
+  }).finally(() => {
+    loading.create = false
+  })
+
 }
 
 const onSelect = (session_id: number) => {
@@ -172,6 +186,14 @@ const onSelect = (session_id: number) => {
 </script>
 
 <style lang="scss" scoped>
+.viewer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - var(--header-height));
+}
+
 .dialog {
   display: flex;
   flex-direction: column;
@@ -228,5 +250,10 @@ const onSelect = (session_id: number) => {
 .side-bar :deep(> div) {
   width: 100%;
   max-width: min(16rem, 100%);
+}
+
+.create-session {
+  padding: 1rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
 }
 </style>

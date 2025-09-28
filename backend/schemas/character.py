@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, Union
+from typing import Annotated, NotRequired, Optional, TypedDict, Union
 
 from fastapi import UploadFile
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
@@ -15,8 +15,11 @@ class LabelResponse(ORMBase):
 def _str2list(s: str):
     if isinstance(s, str):
         return s.split(",")
-    elif isinstance(s, list) and len(s) == 1:
-        return s[0].split(",")
+    elif isinstance(s, list):
+        if len(s) == 1:
+            return s[0].split(",")
+        else:
+            return s
     else:
         print(f"未处理 str2list 参数错误: {s}")
         return s
@@ -74,15 +77,23 @@ class CharacterResponse(ORMBase):
     """角色响应"""
 
     nickname: str = Field(description="昵称")
-    labels: Annotated[list[str], BeforeValidator(labels_convert)] = Field(
-        default_factory=list, description="标签"
-    )
+    avatar: Optional[str] = Field(description="头像")
 
     description: str = Field(description="描述")
     first_message: str = Field(description="首条信息")
     data_range: DataRange = Field(description="数据范围")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CharacterFullResponse(CharacterResponse):
+    labels: Annotated[list[str], BeforeValidator(labels_convert)] = Field(
+        default_factory=list, description="标签"
+    )
+
+
+class CharacterWorldResponse(CharacterFullResponse):
+    world: Optional[WorldResponse] = Field(None, description="关联世界")
 
 
 class CharacterCreateForm(BaseModel):
@@ -94,7 +105,7 @@ class CharacterCreateForm(BaseModel):
     data_range: DataRange = Field(
         DataRange.all, description="数据范围", examples=[DataRange.all, DataRange.self]
     )
-    relate_world_id: int = Field(description="关联世界ID")
+    world_id: Optional[int] = Field(None, description="关联世界ID")
     labels: Annotated[list[str], BeforeValidator(_str2list)] = Field(
         default_factory=list, description="标签列表", examples=[["女", "阳光"]]
     )

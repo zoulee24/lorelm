@@ -63,8 +63,6 @@ export interface ConversationCreateForm {
   /** 用户扮演的角色ID */
   act_character_id?: number;
   character_ids: number[];
-  /** 会话内容 */
-  content: string;
 }
 
 // /**

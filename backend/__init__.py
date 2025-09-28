@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     logger.info("before fastapi start")
 
     logger.info("backend init begin")
-    await db_init(app)
+    await db_init()
     logger.info("backend init finished")
 
     logger.info(f"Fastapi Doc address: http://{host}:{port}{app.docs_url}")
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     finally:
         # after fastapi stop
         logger.info("after fastapi stop")
-        await db_deinit(app)
+        await db_deinit()
         logger.info("backend deinit finished")
 
 

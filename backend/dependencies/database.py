@@ -24,7 +24,7 @@ _engine = None
 session_factory = None
 
 
-async def db_init(app: FastAPI):
+async def db_init():
     global _engine, session_factory, logger
     from ..models import DbBase
 
@@ -49,7 +49,7 @@ async def db_init(app: FastAPI):
     logger.info(f"init finished")
 
 
-async def db_deinit(app: FastAPI):
+async def db_deinit():
     global _engine, session_factory, logger
 
     _engine = None

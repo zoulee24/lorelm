@@ -1,12 +1,18 @@
+import asyncio
 import os
 from datetime import datetime, timedelta
-from operator import attrgetter
+from operator import itemgetter
 from typing import Annotated, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Body, Form, Path, Query
 from fastapi.responses import StreamingResponse
-from omni_llm import AsyncChatBase, ChatOutput, async_chat_factory
+from omni_llm import (
+    AsyncChatBase,
+    ChatOutput,
+    async_chat_factory,
+    async_embedding_factory,
+)
 from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -18,8 +24,16 @@ from backend.models import conversation as models
 from backend.prompts import get_prompt_template
 from backend.schemas import PageResponse
 from backend.schemas import conversation as schemas
+from backend.utils.nlp import FullTextQueryer
+from backend.utils.vector import get_vdb_with
 
 conversation_router = APIRouter(prefix="/conversation", tags=["对话"])
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL")
+OPENAI_EMBED_DIMS = int(os.getenv("OPENAI_EMBED_DIMS"))
+assert OPENAI_EMBED_DIMS == 1024, "OPENAI_EMBED_DIMS must be 1024"
 
 
 @conversation_router.get(
@@ -59,11 +73,24 @@ async def conversation_session_info(
     )
 
 
-@conversation_router.post("", summary="创建会话")
+@conversation_router.post(
+    "", response_model=schemas.SessionMessageResponse, summary="创建会话"
+)
 async def conversation_session_create(
     user_id: dependencies.DependValidUserId,
-    session_id: Optional[int] = Query(None, description="会话ID"),
-    form: schemas.SessionCreateForm | str = Body(description="会话创建表单"),
+    db: dependencies.DependSession,
+    form: schemas.SessionCreateForm = Body(description="会话创建表单"),
+):
+    crud = SessionCrud(db)
+    session = await crud.create_session(form, user_id)
+    return session
+
+
+@conversation_router.post("/{session_id}", summary="继续会话")
+async def conversation_session_chat(
+    user_id: dependencies.DependValidUserId,
+    session_id: int = Path(description="会话ID"),
+    content: str = Body(embed=True, description="会话创建表单"),
 ):
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
@@ -73,48 +100,58 @@ async def conversation_session_create(
         "Qwen/Qwen3-Next-80B-A3B-Instruct", -1, OPENAI_BASE_URL, OPENAI_API_KEY
     )
     return StreamingResponse(
-        create_chat(form, user_id, session_id, client),
+        create_chat(content, user_id, session_id, client),
         media_type="text/event-stream",
     )
 
 
 async def create_chat(
-    form: schemas.SessionCreateForm | str,
+    query: str,
     user_id: int,
-    session_id: Optional[int],
+    session_id: int,
     client: AsyncChatBase,
 ):
-    async with dependencies.get_session_with() as db:
+    quweyer = FullTextQueryer()
+    embed_md = async_embedding_factory("siliconflow")(
+        OPENAI_EMBED_MODEL,
+        -1,
+        OPENAI_EMBED_DIMS,
+        OPENAI_BASE_URL,
+        OPENAI_API_KEY,
+    )
+    (query_string, _), embed_result = await asyncio.gather(
+        asyncio.to_thread(quweyer.question, query), embed_md.encode([query])
+    )
+    query_vector: list[float] = embed_result.v[0].tolist()
+    async with dependencies.get_session_with() as db, get_vdb_with() as vdb:
         crud = SessionCrud(db)
-        if session_id is not None:
-            session = await crud.get_data(
-                session_id,
-                options=[
-                    selectinload(crud.model.messages),
-                    selectinload(crud.model.characters),
-                    joinedload(crud.model.act_character),
-                    joinedload(crud.model.world),
-                    joinedload(crud.model.user),
-                ],
-                strict=True,
-                scalar=True,
+
+        session = await crud.get_data(
+            session_id,
+            wheres=crud.model.user_id == user_id,
+            options=[
+                selectinload(crud.model.messages),
+                selectinload(crud.model.characters),
+                joinedload(crud.model.act_character),
+                joinedload(crud.model.world),
+                joinedload(crud.model.user),
+            ],
+            strict=True,
+            scalar=True,
+        )
+        if not session.title or len(session.messages) < 2:
+            session.title = query[:32]
+        session.messages.append(
+            models.ConversationHistory(
+                session_id=session.id,
+                message_id=str(uuid4()),
+                role="user",
+                content=query,
             )
-            session.messages.append(
-                models.ConversationHistory(
-                    session_id=session.id,
-                    message_id=str(uuid4()),
-                    role="user",
-                    content=form,
-                )
-            )
-            session = await crud.update_data(
-                session, attribute_names=["updated_at", "messages"]
-            )
-        else:
-            session = await crud.create_data(form, user_id)
-            yield "event: session_created\ndata: {}\n\n".format(
-                schemas.SessionFullResponse.model_validate(session).model_dump_json()
-            )
+        )
+        session = await crud.update_data(
+            session, attribute_names=["updated_at", "messages"]
+        )
 
         roles_name = (
             "[" + ", ".join(map(lambda x: f'"{x.nickname}"', session.characters)) + "]"
@@ -147,10 +184,6 @@ async def create_chat(
                 "role": "system",
                 "content": task_prompt,
             },
-            {
-                "role": "assistant",
-                "content": session.characters[0].first_message,
-            },
         ]
         message.extend(
             dict(role=message.role, content=message.content)
@@ -162,6 +195,27 @@ async def create_chat(
                 session.messages[-1]
             ).model_dump_json()
         )
+
+        yield "event: notice\ndata: 搜索世界知识中\n\n"
+        search_result = await vdb.search(
+            "lorelm",
+            docs_id=1,
+            query_string=query_string,
+            query_vector=query_vector,
+            includes=["content"],
+        )
+        if search_result:
+            print(f"检索到 {len(search_result)} 条知识")
+            kb_prompt = get_prompt_template("lorebook").render(
+                knowledgebase=map(itemgetter("content"), search_result)
+            )
+            message.append(
+                {
+                    "role": "system",
+                    "content": kb_prompt,
+                }
+            )
+
         ans: ChatOutput = None
         async for chunk in client.generate(message):
             if ans is None:

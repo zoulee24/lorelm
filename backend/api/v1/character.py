@@ -1,14 +1,17 @@
 import os
 from operator import attrgetter
 from typing import Annotated, Optional, Union
+from uuid import uuid4
 
 from fastapi import APIRouter, Body, Form, Path, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from omni_llm import ChatOutput, async_chat_factory
 from sqlalchemy import or_, select
+from sqlalchemy.orm import joinedload
 
 from backend import dependencies
-from backend.crud import CharacterCrud, LabelCrud, UserCrud, WorldCrud
+from backend.components.chunk import chunking
+from backend.crud import CharacterCrud, DocumentCrud, LabelCrud, WorldCrud
 from backend.exceptions import CustomException, ErrorCode
 from backend.prompts import get_prompt_template
 from backend.schemas import PageResponse
@@ -23,10 +26,11 @@ PathLabelId = Annotated[int, Path(description="标签ID")]
 PathWorldId = Annotated[int, Path(description="世界ID")]
 
 OSS_BUCKET_NAME = "lorelm"
+VDB_INDEX_NAME = "lorelm"
 
 
 @role_router.get(
-    "", response_model=PageResponse[schemas.CharacterResponse], summary="角色列表"
+    "", response_model=PageResponse[schemas.CharacterFullResponse], summary="角色列表"
 )
 async def role_list(
     query_params: dependencies.DependPageQuery, db: dependencies.DependSession
@@ -38,12 +42,38 @@ async def role_list(
 
 
 @role_router.get(
-    "/{role_id}", response_model=schemas.CharacterResponse, summary="角色信息"
+    "/{role_id}", response_model=schemas.CharacterWorldResponse, summary="角色信息"
 )
 async def role_info(role_id: PathRoleId, db: dependencies.DependSession):
     crud = CharacterCrud(db)
-    data = await crud.get_data(role_id, strict=True, scalar=False)
+    data = await crud.get_data(
+        role_id, options=joinedload(crud.model.world), strict=True, scalar=False
+    )
     return data
+
+
+@role_router.delete("/{role_id}", summary="删除角色")
+async def role_info(
+    role_id: PathRoleId,
+    db: dependencies.DependSession,
+    oss: dependencies.DependOSS,
+    vdb: dependencies.DependVDB,
+):
+    crud = CharacterCrud(db)
+    doc_crud = DocumentCrud(db)
+    docs = await doc_crud.get_datas(wheres=doc_crud.model.character_id == role_id)
+    if docs is not None and len(docs) > 0:
+        docs_path = [doc.path.strip("/").split("/", maxsplit=1)[1] for doc in docs]
+        await oss.document_mult_delete(OSS_BUCKET_NAME, docs_path)
+        docs_id = tuple(map(attrgetter("id"), docs))
+        await vdb.doc_delete(VDB_INDEX_NAME, docs_id=docs_id)
+
+        await doc_crud.delete_datas(docs_id)
+    role = await crud.get_data(role_id)
+    if role.avatar:
+        bucket, url = role.avatar.strip("/").split("/", maxsplit=1)
+        await oss.document_delete(bucket, url)
+    await crud.delete_data(role_id)
 
 
 @role_router.post("", response_model=schemas.CharacterResponse)
@@ -54,15 +84,17 @@ async def role_info(
     user_id: dependencies.DependValidUserId,
     db: dependencies.DependSession,
     oss: dependencies.DependOSS,
+    vdb: dependencies.DependVDB,
 ):
     if not isinstance(form.files, list):
         form.files = [form.files]
     crud = CharacterCrud(db)
-    data = await crud.create_data(form, user_id)
+    doc_crud = DocumentCrud(db)
+    role = await crud.create_data(form, user_id)
 
     if form.avatar:
         avatar_url = (
-            f"role_{data.id}/avatar.{form.avatar.filename.rsplit(".", maxsplit=1)[1]}"
+            f"role_{role.id}/avatar.{form.avatar.filename.rsplit(".", maxsplit=1)[1]}"
         )
         await oss.document_create(
             OSS_BUCKET_NAME,
@@ -71,17 +103,30 @@ async def role_info(
             form.avatar.size,
         )
         avatar_url = f"/{OSS_BUCKET_NAME}/{avatar_url}"
-        data.avatar = avatar_url
+        role.avatar = avatar_url
+        role = await crud.update_data(role, attribute_names=["labels", "updated_at"])
 
-    # for file in files:
-    #     file_path = f"role_{data.id}/{file.filename}"
-    #     assert await oss.document_create(
-    #         OSS_BUCKET_NAME, file_path, file.file, file.size
-    #     ), "上传失败"
+    for file in form.files:
+        uid = uuid4().hex
+        tail = os.path.splitext(file.filename)[1]
+        file_path = f"role_{role.id}/{uid}{tail}"
+        assert await oss.document_create(
+            OSS_BUCKET_NAME, file_path, file.file, file.size
+        ), "上传失败"
+        await file.seek(0)
+        content = (await file.read()).decode("utf-8")
+        doc = doc_crud.model(
+            character_id=role.id,
+            world_id=role.world_id,
+            index=VDB_INDEX_NAME,
+            path=f"/{OSS_BUCKET_NAME}/{file_path}",
+            data_range=form.data_range,
+        )
+        model = await doc_crud.create_data(doc)
+        docs = await chunking("naive", content, model.id)
+        await vdb.doc_batch_insert(VDB_INDEX_NAME, docs)
 
-    # TODO 构建知识库
-
-    return data
+    return role
 
 
 @world_router.get(

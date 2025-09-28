@@ -1,4 +1,5 @@
 import type { DataRange, ORMBase } from "../base";
+import type { UploadFile } from 'element-plus';
 
 /**
  * 角色标签接口
@@ -18,10 +19,15 @@ export interface WorldResponse extends ORMBase {
   description: string;
   /** 数据范围 */
   data_range: DataRange;
-  /** 标签 */
-  labels: string[];
   /** 拥有用户ID */
   user_id: number;
+  // 头像
+  avatar?: string;
+}
+
+export interface WorldFullResponse extends WorldResponse {
+  /** 标签 */
+  labels: string[];
 }
 
 /**
@@ -40,6 +46,10 @@ export interface CharacterResponse extends ORMBase {
   labels: string[];
   /** 拥有用户ID */
   user_id: number;
+  /** 头像 */
+  avatar?: string;
+  /** 世界ID */
+  world_id?: number;
 }
 
 /**
@@ -85,7 +95,10 @@ export interface CharacterCreateForm {
   /** 数据范围 */
   data_range: DataRange;
   /** 标签列表 */
-  labels?: string[];
+  labels: string[];
+  world_id?: number;
+  files: UploadFile[] | File[];
+  avatar?: File;
 }
 
 /**
