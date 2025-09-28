@@ -71,6 +71,9 @@ class WorldCreateForm(BaseModel):
     labels: Annotated[list[str], BeforeValidator(_str2list)] = Field(
         default_factory=list, description="标签列表", examples=[["魔法", "中世纪"]]
     )
+    files: Union[UploadFile, list[UploadFile]] = Field(
+        default_factory=list, description="文件列表"
+    )
 
 
 class CharacterResponse(ORMBase):

@@ -41,8 +41,8 @@ const world = {
   stream: (query: string) => 
     request.get<LabelResponse[]>('/world/stream', { params: { name: query} }),
 
-  create: (data: WorldCreateForm) =>
-    request.post<WorldFullResponse>("/world", { form: objectToFormData(data) }),
+  create: (data: FormData) =>
+    request.post<WorldFullResponse>("/world", { form: data }),
 
   update: (world_id: number, data: WorldCreateForm) =>
     request.put<WorldFullResponse>(`/world/${world_id}`, { body: objectToFormData(data) }),

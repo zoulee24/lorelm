@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class DocumentCreateDict(TypedDict, total=False):
-    doc_id: int
+    role_id: int
+    world_id: int
 
     content: str
     content_ltks: str
@@ -20,7 +21,8 @@ class DocumentCreateDict(TypedDict, total=False):
 class DocumentDict(TypedDict):
     id: str
 
-    doc_id: int
+    role_id: int
+    world_id: int
 
     create_at: int
     update_at: int

@@ -20,7 +20,7 @@
         <el-option v-for="it in labels" :label="it.name" :value="it.id" :key="it.id" />
       </el-select>
     </el-form-item>
-    <el-upload multiple :auto-upload="false" accept=".txt,.md,.markdown">
+    <el-upload multiple :auto-upload="false" accept=".txt,.md,.markdown" v-model:file-list="create_data.files" :limit="20">
       <el-button type="primary">上传更多 [{{create_data.nickname || '世界'}}] 的背景</el-button>
     </el-upload>
     <div class="flex item-center justify-center">
@@ -34,11 +34,13 @@ import type { LabelResponse, WorldCreateForm, WorldFullResponse } from '@/schema
 import characterApi from '@/api/character';
 import { reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
+import { objectToFormData } from '@/utils';
 const create_data = reactive<WorldCreateForm>({
   nickname: '',
   description: '',
   data_range: 'all',
   labels: [],
+  files: [],
 });
 
 interface Emits {
@@ -50,7 +52,8 @@ const emits = defineEmits<Emits>();
 
 const labels = ref<LabelResponse[]>([])
 const loading = reactive({
-  labels: false
+  labels: false,
+  upload: false,
 })
 
 const onSearch = async (query: string) => {
@@ -71,8 +74,13 @@ const onSubmit = () => {
     ElMessage.info('请输入正确的描述')
     return;
   }
-  characterApi.world.create(create_data).then(res => {
+  create_data.files = create_data.files.map(it => it.raw)
+  const form = objectToFormData(create_data)
+  loading.upload = true;
+  characterApi.world.create(form).then(res => {
     emits('submit', res)
+  }).finally(() => {
+    loading.upload = false;
   })
 }
 

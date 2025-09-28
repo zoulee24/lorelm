@@ -180,8 +180,8 @@ class ElasticSearch(VectorDatabase[AsyncElasticsearch]):
     async def search(
         self,
         index_name: Union[str, LenAbleVar[str]],
-        kbs_id: Optional[Union[int, LenAbleVar[int]]] = None,
-        docs_id: Optional[Union[int, LenAbleVar[int]]] = None,
+        roles_id: Optional[Union[int, LenAbleVar[int]]] = None,
+        worlds_id: Optional[Union[int, LenAbleVar[int]]] = None,
         query_string: Optional[str] = None,
         query_string_fields: LenAbleVar[str] = DEFAULT_QUERY_FIELDS,
         query_vector: Optional[LenAbleVar[float]] = None,
@@ -201,18 +201,18 @@ class ElasticSearch(VectorDatabase[AsyncElasticsearch]):
 
         # # 过滤
         # s = s.filter("term", disabled=False)
-        if kbs_id:
+        if worlds_id:
             s = (
-                s.filter("term", kb_id=kbs_id)
-                if isinstance(kbs_id, int)
-                else s.filter("terms", kb_id=kbs_id)
+                s.filter("term", world_id=worlds_id)
+                if isinstance(worlds_id, int)
+                else s.filter("terms", world_id=worlds_id)
             )
-        if docs_id:
+        if roles_id:
             # 查询 元数据里面的 id 字段
             s = (
-                s.filter("term", doc_id=docs_id)
-                if isinstance(docs_id, int)
-                else s.filter("terms", doc_id=docs_id)
+                s.filter("term", role_id=roles_id)
+                if isinstance(roles_id, int)
+                else s.filter("terms", role_id=roles_id)
             )
         if query_string:
             s = s.query(
@@ -234,16 +234,10 @@ class ElasticSearch(VectorDatabase[AsyncElasticsearch]):
                 similarity=vector_similarity,
             )
 
-        # import json
-
-        # with open("query.json", "w") as f:
-        #     json.dump(s.to_dict(), f, ensure_ascii=False, indent=2)
-
         rsp = await s.execute()
         # TODO 优化这个id的提取
         for hit in rsp.hits:
             hit["id"] = hit.meta.id
-        # return TypeAdapter(list[Document]).validate_python(rsp.hits)
         return recursive_to_dict(rsp.hits)
 
     async def close(self):

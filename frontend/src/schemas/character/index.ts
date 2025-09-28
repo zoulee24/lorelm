@@ -75,11 +75,12 @@ export interface WorldCreateForm {
   /** 昵称 */
   nickname: string;
   /** 描述 */
-  description?: string;
+  description: string;
   /** 数据范围 */
   data_range: DataRange;
   /** 标签列表 */
   labels?: string[];
+  files: UploadFile[] | File[];
 }
 
 /**

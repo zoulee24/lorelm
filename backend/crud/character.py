@@ -109,7 +109,9 @@ class WorldCrud(CrudBase[models.World, schemas.WorldResponse]):
         not_exist_labels = set(data.labels) - set(
             map(attrgetter("name"), exist_label_model)
         )
-        model = self.model(**data.model_dump(exclude={"labels"}), user_id=user_id)
+        model = self.model(
+            **data.model_dump(exclude={"labels", "files"}), user_id=user_id
+        )
         model.labels.extend(exist_label_model)
 
         if not_exist_labels:

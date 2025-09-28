@@ -117,13 +117,13 @@ async def role_info(
         content = (await file.read()).decode("utf-8")
         doc = doc_crud.model(
             character_id=role.id,
-            world_id=role.world_id,
+            world_id=None,
             index=VDB_INDEX_NAME,
             path=f"/{OSS_BUCKET_NAME}/{file_path}",
             data_range=form.data_range,
         )
         model = await doc_crud.create_data(doc)
-        docs = await chunking("naive", content, model.id)
+        docs = await chunking("naive", content, model.id, None)
         await vdb.doc_batch_insert(VDB_INDEX_NAME, docs)
 
     return role
@@ -190,10 +190,35 @@ async def world_create(
     form: Annotated[schemas.WorldCreateForm, Form()],
     user_id: dependencies.DependValidUserId,
     db: dependencies.DependSession,
+    oss: dependencies.DependOSS,
+    vdb: dependencies.DependVDB,
 ):
+    if not isinstance(form.files, list):
+        form.files = [form.files]
     crud = WorldCrud(db)
-    data = await crud.create_data(form, user_id)
-    return data
+    doc_crud = DocumentCrud(db)
+    world = await crud.create_data(form, user_id)
+
+    for file in form.files:
+        uid = uuid4().hex
+        tail = os.path.splitext(file.filename)[1]
+        file_path = f"world_{world.id}/{uid}{tail}"
+        assert await oss.document_create(
+            OSS_BUCKET_NAME, file_path, file.file, file.size
+        ), "上传失败"
+        await file.seek(0)
+        content = (await file.read()).decode("utf-8")
+        doc = doc_crud.model(
+            character_id=None,
+            world_id=world.id,
+            index=VDB_INDEX_NAME,
+            path=f"/{OSS_BUCKET_NAME}/{file_path}",
+            data_range=form.data_range,
+        )
+        model = await doc_crud.create_data(doc)
+        docs = await chunking("naive", content, None, model.id)
+        await vdb.doc_batch_insert(VDB_INDEX_NAME, docs)
+    return world
 
 
 @label_router.get("/", response_model=PageResponse[schemas.LabelResponse])

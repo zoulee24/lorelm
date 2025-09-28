@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Literal
+from typing import Literal, Optional
 
 from ...schemas.components.chunk import DocumentCreateDict
 
@@ -11,16 +11,21 @@ OPENAI_EMBED_DIMS = int(os.getenv("OPENAI_EMBED_DIMS"))
 assert OPENAI_EMBED_DIMS == 1024, "OPENAI_EMBED_DIMS must be 1024"
 
 
-async def chunking(method: Literal["naive"], content: str, doc_id: int):
+async def chunking(
+    method: Literal["naive"],
+    content: str,
+    role_id: Optional[int],
+    world_id: Optional[int],
+):
     match method:
         case "naive":
-            docs = await naive_chunk(content, doc_id)
+            docs = await naive_chunk(content, role_id, world_id)
         case _:
             raise ValueError(f"Unknown chunk method: {method}")
     return docs
 
 
-async def naive_chunk(content: str, doc_id: int):
+async def naive_chunk(content: str, role_id: Optional[int], world_id: Optional[int]):
     from omni_llm import async_embedding_factory
 
     from ...schemas.components import ChunkingConfig
@@ -42,5 +47,6 @@ async def naive_chunk(content: str, doc_id: int):
 
     for doc, content_vector in zip(docs, content_vectors):
         doc["vector"] = content_vector
-        doc["doc_id"] = doc_id
+        doc["role_id"] = role_id
+        doc["world_id"] = world_id
     return docs

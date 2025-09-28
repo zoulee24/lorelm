@@ -1,7 +1,7 @@
 import asyncio
 import os
 from datetime import datetime, timedelta
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from typing import Annotated, Optional
 from uuid import uuid4
 
@@ -201,7 +201,8 @@ async def create_chat(
         yield 'event: notice\ndata: {"content": "搜索世界知识中"}\n\n'
         search_result = await vdb.search(
             "lorelm",
-            docs_id=1,
+            worlds_id=session.world.id if session.world else None,
+            roles_id=list(map(attrgetter("id"), session.characters)),
             query_string=query_string,
             query_vector=query_vector,
             includes=["content"],

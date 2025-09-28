@@ -18,6 +18,16 @@ common:
 
 mapping:
   properties:
+    # 文档id
+    role_id:
+      type: long
+      # similarity: boolean
+      store: true
+    # 文档id
+    world_id:
+      type: long
+      # similarity: boolean
+      store: true
     # 原文
     content:
       type: text
