@@ -139,13 +139,44 @@ const streaming = async (query: string, session_id: number, clearText: () => voi
       history.value?.scrollToBottom('smooth')
     } else if (chunk.type === 'notice') {
       ElMessage.info({
-        message: chunk.data.message,
+        message: chunk.data.content,
         duration: 3000,
       })
+    } else if (chunk.type === 'tts') {
+      const base64_mp3_data = chunk.data.data
+      playBase64Audio(base64_mp3_data)
     } else {
       console.log("未知事件类型: ", chunk.type);
     }
   }
+}
+
+// 播放base64编码的MP3音频
+const playBase64Audio = (base64Data: string) => {
+  // 将base64数据转换为Blob
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const blob = new Blob([bytes], { type: 'audio/mp3' });
+  const audioUrl = URL.createObjectURL(blob);
+  
+  // 创建audio元素并播放
+  const audio = new Audio(audioUrl);
+  audio.play()
+    .then(() => {
+      console.log('音频播放成功');
+      // 播放完毕后释放资源
+      audio.addEventListener('ended', () => {
+        URL.revokeObjectURL(audioUrl);
+      });
+    })
+    .catch(error => {
+      console.error('音频播放失败:', error);
+      URL.revokeObjectURL(audioUrl);
+    });
 }
 
 const onSubmit = (data: CreateForm) => {

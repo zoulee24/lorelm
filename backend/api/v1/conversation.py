@@ -5,6 +5,7 @@ from operator import itemgetter
 from typing import Annotated, Optional
 from uuid import uuid4
 
+import aiohttp
 from fastapi import APIRouter, Body, Form, Path, Query
 from fastapi.responses import StreamingResponse
 from omni_llm import (
@@ -33,6 +34,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
 OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL")
 OPENAI_EMBED_DIMS = int(os.getenv("OPENAI_EMBED_DIMS"))
+QINIU_API_KEY = os.getenv("QINIU_API_KEY")
 assert OPENAI_EMBED_DIMS == 1024, "OPENAI_EMBED_DIMS must be 1024"
 
 
@@ -196,7 +198,7 @@ async def create_chat(
             ).model_dump_json()
         )
 
-        yield "event: notice\ndata: 搜索世界知识中\n\n"
+        yield 'event: notice\ndata: {"content": "搜索世界知识中"}\n\n'
         search_result = await vdb.search(
             "lorelm",
             docs_id=1,
@@ -241,6 +243,30 @@ async def create_chat(
             else:
                 ans += chunk
             yield f"event: output\ndata: {chunk.model_dump_json(exclude_none=True)}\n\n"
+
+        async with aiohttp.ClientSession() as se:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {QINIU_API_KEY}",
+            }
+            data = {
+                "audio": {
+                    "voice_type": "qiniu_zh_female_tmjxxy",
+                    "encoding": "mp3",
+                    "speed_ratio": 1.0,
+                },
+                "request": {"text": ans.content},
+            }
+            async with se.post(
+                "https://openai.qiniu.com/v1/voice/tts", headers=headers, json=data
+            ) as response:
+                if response.status == 200:
+                    data = await response.content.read()
+                    yield b"event: tts\ndata: " + data + b"\n\n"
+                else:
+                    data = await response.content.read()
+                    print(response.status)
+
         # 结束对话
         yield f"event: done\n\n"
         # 更新token使用量
